@@ -1,0 +1,267 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Arsclassica Article
+% LaTeX Template
+% Version 1.1 (1/8/17)
+%
+% This template has been downloaded from:
+% http://www.LaTeXTemplates.com
+%
+% Original author:
+% Lorenzo Pantieri (http://www.lorenzopantieri.net) with extensive modifications by:
+% Vel (vel@latextemplates.com)
+%
+% License:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[
+10pt, % Main document font size
+a4paper, % Paper type, use 'letterpaper' for US Letter paper
+oneside, % One page layout (no page indentation)
+%twoside, % Two page layout (page indentation for binding and different headers)
+headinclude,footinclude, % Extra spacing for the header and footer
+BCOR5mm, % Binding correction
+]{scrartcl}
+
+\input{structure.tex} % Include the structure.tex file which specified the document structure and layout
+\usepackage{pythontex}
+\usepackage{graphicx, subfig}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref,amsmath,amssymb,dsfont,graphicx}
+%\usepackage{ngerman}
+\numberwithin{equation}{subsection}
+
+\hyphenation{Fortran hy-phen-ation} % Specify custom hyphenation points in words with dashes where you would like hyphenation to occur, or alternatively, don't put any dashes in a word to stop hyphenation altogether
+
+%----------------------------------------------------------------------------------------
+%	TITLE AND AUTHOR(S)
+%----------------------------------------------------------------------------------------
+
+\title{\normalfont\spacedallcaps{Stock Quote Correlations}} % The article title
+
+%\subtitle{Ein Gemeindeportrait in Zahlen} % Uncomment to display a subtitle
+
+\author{\spacedlowsmallcaps{Thomas Bütikofer}} % The article author(s) - author affiliations need to be specified in the AUTHOR AFFILIATIONS block
+
+\date{} % An optional date to appear under the author(s)
+
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+\pyc{import document, python.base as base}
+%----------------------------------------------------------------------------------------
+%	HEADERS
+%----------------------------------------------------------------------------------------
+
+\renewcommand{\sectionmark}[1]{\markright{\spacedlowsmallcaps{#1}}} % The header for all pages (oneside) or for even pages (twoside)
+%\renewcommand{\subsectionmark}[1]{\markright{\thesubsection~#1}} % Uncomment when using the twoside option - this modifies the header on odd pages
+\lehead{\mbox{\llap{\small\thepage\kern1em\color{halfgray} \vline}\color{halfgray}\hspace{0.5em}\rightmark\hfil}} % The header style
+
+\pagestyle{scrheadings} % Enable the headers specified in this block
+
+%----------------------------------------------------------------------------------------
+%	TABLE OF CONTENTS & LISTS OF FIGURES AND TABLES
+%----------------------------------------------------------------------------------------
+
+\maketitle % Print the title/author/date block
+
+\setcounter{tocdepth}{2} % Set the depth of the table of contents to show sections and subsections only
+
+%\tableofcontents % Print the table of contents
+
+%\listoffigures % Print the list of figures
+
+%\listoftables % Print the list of tables
+
+%----------------------------------------------------------------------------------------
+%	ABSTRACT
+%----------------------------------------------------------------------------------------
+
+\section*{Abstract} % This section will not appear in the table of contents due to the star (\section*)
+Analysis of daily closing quotes of publicly traded securities identifies groups of securities whose quotes show a persistent similar reaction to market shock events over multiple years. The analysis is performed on securities traded on SIX and Xetra exchanges.
+
+%----------------------------------------------------------------------------------------
+%	AUTHOR AFFILIATIONS
+%----------------------------------------------------------------------------------------
+
+%\let\thefootnote\relax\footnotetext{* \textit{Department of Biology, University of Examples, London, United Kingdom}}
+
+%\let\thefootnote\relax\footnotetext{\textsuperscript{1} \textit{Department of Chemistry, University of Examples, London, United Kingdom}}
+
+%----------------------------------------------------------------------------------------
+
+\newpage % Start the article content on the second page, remove this if you have a longer abstract that goes onto the second page
+
+\section{Introduction}
+The evolution of traded stock quotes over time result in a peculiar example of time series which are neither predictable nor random. While a hypothetically existing pattern would be immediately destroyed by market participants, the quotes itself are an emergent measure of a valuation of the expected future revenue of the issuing company.\\
+But not all stock quotes evolve independently. Two stocks issued by the same company have quotes moving in parallel as their valuation is associated with the same underlying expectation for the same issuing company. For a market with $n$ traded stocks the number of independent stock quotes is clearly smaller than $n$. But are there other stocks whose quotes evolve in parallel or exhibit a high correlation? What are the criteria for stock quotes to evolve similarly? The industry or the geographical spread of the issuing company or other criteria?\\
+\section{Correlation of stock quotes}
+\subsection{Data preparation}
+For a stock $i$, the quote on the $j^{th}$ day of the analysed period is denoted as $q_j^{(i)}$. Quotes from successive trading days form time series where the quote $q_j^{(i)}$ comes from a later date than $q_j^{(i-1)}$.
+
+As no trading takes place on weekends and bank holidays (Christmas, Easter) subsequent quotes might be separated by several days. I.e. even though two quotes $q_j^{(i-1)}$ and $q_j^{(i)}$ are subsequent in the analysed time series, they don't necessarily result from subsequent dates.
+
+The analysis has been performed on a normalized data set $\{\delta_i^{(j)}\}$ of daily quote changes between subsequent time series elements (e.g. trading days):
+\begin{equation}
+\delta_i^{(j)} \equiv \log{\frac{q_{i}^{(j)}}{q_{i-1}^{(j)}}}
+\end{equation}
+If a stock hasn't been traded on a certain date, the previous day's quote has been assumed.
+\subsection{Same-day correlation}
+The correlation coefficient $\rho_{jk}$ is a measure for how similar the daily quote changes of stocks $j$ and $k$ fare.
+The correlation between the quote time series for the same trading day is
+\begin{equation}
+\rho_{jk} \equiv \frac{\sum_{i=1}^N\left(q_i^{(j)}-<q^{(j)}>\right)\left(q_i^{(k)}-<q^{(k)}>\right)}{\sqrt{\sum_{i=1}^N\left(q_i^{(j)}-<q^{(j)}>\right)^2}\sqrt{\sum_{i=1}^N\left(q_i^{(k)}-<q^{(k)}>\right)^2}}\quad.
+\label{eqSameDayCorrelation}
+\end{equation}
+Since each time series has a self-correlation $\rho_{jj}=1$, the diagonal shows up very prominently but carries no information.
+\subsection{Market momentum}
+As a measure for the existence of stocks with a high (anti-)correlation, this article introduces a market momentum $p$, defined as:
+\begin{equation}
+p\equiv\sqrt{<\rho\circ \rho>}
+\end{equation}
+whereas $\circ$  represents the Hadamard product. The higher the value of $p$, the more securities with correlated and/or anti-correlated stock quote evolution are present during the respective time period.
+\subsection{Temporal correlation}
+Knowing the the quote changes of a stock in advance is the dream of every stock trader. If a stock could be found whose price changes echo the evolution of another stocks prices with some days $T$ delay, this information could be exploited. By evaluating the temporal correlation between all stock quotes during the analysed period verifies that no such price echoes exist.\\
+The temporal correlation between two stocks is determined by
+\begin{equation}
+\rho_{jk}^{(T)} \equiv \frac{\sum_{i=1}^{N-T}\left(q_i^{(j)}-<q^{(j)}>\right)\left(q_{i+T}^{(k)}-<q^{(k)}>\right)}{\sqrt{\sum_{i=1}^{N-T}\left(q_i^{(j)}-<q^{(j)}>\right)^2}\sqrt{\sum_{i=1}^{N-T}\left(q_{i+T}^{(k)}-<q^{(k)}>\right)^2}}\quad.
+\end{equation}
+For $T=0$ the temporal correlations are reduced to the already discussed same-day correlation \ref{eqSameDayCorrelation}.
+\newpage
+\section{Results}
+%\pyc{document.calc_SWX_correlations()}
+\pyc{document.plot_SWX_correlations(document.events_SWX)}
+\subsection{SIX stock exchange SWX}
+\subsubsection{Market dynamics}
+%The data basis consists of daily quotes\footnote{Day close quote} of \py{len(isin)}  stocks which have been been publicly traded on \py{trading_days} trading days between \py{correlate.get_first_day(last_day, interval_days)} and \py{last_day}.\\
+\begin{figure}[ht]
+\centering
+\pyc{print(r"\includegraphics[width=1.0\textwidth,trim={{50 30 50 50}},clip]{{img/{}.png}}".format(document.dataset_SWX_correlations))}
+% trim={<left> <lower> <right> <upper>}
+\caption{Evolution of stock quote correlations over various time scales. Possible trigger events for peaks in the 28-day correlation are marked by vertical lines. See table \ref{tabSWXTriggerEvents}.}
+\label{figSWXMarketCorrelation}
+\end{figure}
+\begin{table}[ht]
+\centering
+\begin{pycode}
+table_array =   [['c', 'c', 'l']] + \
+                		[['\#', 'Date', 'Event']] + \
+                		[[event['label'], event['date'], event['text']] for event in document.events_SWX]
+base.latex_table(table_array)
+\end{pycode}
+\caption{Possible trigger events for peaks in the 28-day market correlation. See figure \ref{figSWXMarketCorrelation}.}
+\label{tabSWXTriggerEvents}
+\end{table}
+\subsection{External trigger events}
+\begin{pycode}
+for event in document.events_SWX:
+    print(r"\subsubsection{{{}}}".format(event['text']))
+    filename, sample_data, security_num = document.plot_SWX_event(event)
+    print(r"\begin{figure}[!htbp]")
+    print(r"\centering")
+    print(r"\subfloat{{\includegraphics[width=0.4\textwidth,trim={{270 30 60 60}}]{{{}_corr.png}}}}".format(filename))
+    print(r"\hfill")
+    print(r"\subfloat{{\includegraphics[width=0.6\textwidth,trim={{30 30 30 60}}]{{{}_sample.png}}}}".format(filename))
+    #% trim={<left> <lower> <right> <upper>}
+    print(r"\caption{{Left: Correlations between quotes of {} securities over {} days ({} trading days) up to {}. Right: Security quote samples from this period.}}".format(security_num, 28, len(sample_data[0]['data'][0]['data']), event['date']))
+    print(r"\label{{fig_{}}}".format(filename))
+    print(r"\end{figure}")
+    table_array = [['c', 'r', 'c', 'l']] + [['Cluster', 'Norm', 'ISIN', 'Issuer']]
+    for cluster_data in sample_data:
+        for isin_data in cluster_data['data']:
+            table_array.append([
+                cluster_data['id'],
+                "{:.3f}".format(float(isin_data['norm'])),
+                isin_data['id'],
+                isin_data['issuer']
+            ])
+    base.latex_table(table_array)    
+\end{pycode}
+%\subsection{EU 750 bEUR bail-out fonds}
+%\begin{pycode}
+
+%\end{pycode}
+
+\begin{figure}[ht]
+\centering
+\pyc{print(r"\includegraphics[width=0.8\textwidth,trim={30 30 30 30},clip]{img/stock_correlation_SWX.png}")}
+% trim={<left> <lower> <right> <upper>}
+\caption{Quote correlation matrix of ??? traded stocks on the same trading day. Axis indicate the correlated stocks.}
+\label{figQuoteCorrelationSameDay}
+\end{figure}
+%What's more interesting are the off-diagonal elements which mostly show high (red) or close to zero (green) correlation. Only 13\% of all correlation coefficients are negative (blue)\footnote{The smallest correlation coefficient exists with -0.26 between Cytos Biotechnology AG (CH0011025217) and  Siegfried Holding AG (CH0014284498).}.\\
+%The distinctive colour bands suggest a segmentation of the analysed stocks into clusters with different correlation values. The next section attempts to decide whether the clusters are discrete or part of a continuous gradient.\\
+
+%Figure \ref{figQuoteCorrelationSameDayClusters} shows the same correlation matrix as \ref{figQuoteCorrelationSameDay}, but arranged by the five correlation clusters.\\
+%\begin{figure}[ht]
+%\centering
+%\py{\includegraphics[width=0.8\textwidth,trim={60 30 60 10},clip]{img/StockCorrelation_classified_0-5.png}
+%\caption{Correlation matrix from figure \ref{figQuoteCorrelationSameDay}, sorted by stock correlation clusters.}
+%\label{figQuoteCorrelationSameDayClusters}
+%\end{figure}
+
+Table \ref{tabClusterStatistics} compares the statistical properties of the five correlation clusters. The general conclusion form this comparison is that clusters with high correlation coefficients $C_{jk}$ contain stocks with small daily quote change fluctuations (small $\sigma(\delta)$). Figure \ref{figQuoteChangeCluster} shows a logarithmic plot of the daily quote changes for clusters A,B,D and E. Cluster C has been omitted for layout reasons. As per definition of cluster A, its stock quotes tend to move in parallel, the low fluctuation compared to the other clusters can easily deduced from the small band the daily quote changes inhibit.\\
+Furthermore, cluster A stock quotes seem to be strongest affected by systemic influences the SNB's decision on January 15th 2015 to disband the strict coupling of the Swiss Franc to the Euro. This information is imprinted as a negative peak at trading day 88.
+
+In contrast, stocks in cluster E give no indication that January 15th was anything other than an ordinary trading day. Any effect the SNB's decision might have had is hidden by the regular highly fluctuating quote changes.\\
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{|c|r|r|r|r|r|}
+\hline
+Cluster & Stocks & Gain & $<\delta>$ & $<\sigma(\delta)>$ & $<C>$\\
+\hline
+A	&	33	&	-3.34\%	&	-0.014\%	&	0.016	&	0.618	\\
+B	&	34	&	 2.03\%	&	 0.008\%	&	0.017	&	0.387	\\
+C	&	39	&	-6.18\%	&	-0.026\%	&	0.018	&	0.196	\\
+D	&	30	&	-12.53\%	&	-0.054\%	&	0.020	&	0.112	\\
+E	&	28	&	-12.44\%	&	-0.054\%	&	0.032	&	0.048	\\
+\hline
+\end{tabular}
+\caption{Averaged statistical characteristics over the analysed period for each correlation cluster.}
+\label{tabClusterStatistics}
+\end{table}
+\begin{figure}[ht]
+\centering
+\begin{tabular}{cc}
+\includegraphics[width=0.5\textwidth,trim={40 20 50 10},clip]{img/Quotes_Cluster_A.png}&
+\includegraphics[width=0.5\textwidth,trim={40 20 50 10},clip]{img/Quotes_Cluster_B.png}\\
+\includegraphics[width=0.5\textwidth,trim={40 20 50 10},clip]{img/Quotes_Cluster_D.png}&
+\includegraphics[width=0.5\textwidth,trim={40 20 50 10},clip]{img/Quotes_Cluster_E.png}
+\end{tabular}
+\caption{Logarithm of daily quote changes for stocks within the same correlation cluster during the analysed period.}
+\label{figQuoteChangeCluster}
+\end{figure}
+The explicit assignment of stocks to correlation clusters is shown in appendix \ref{secClusterAssignment}.
+\clearpage
+Figure \ref{figQuoteTemporalCorrelation} shows the temporal correlations for $T=1,2,3,4$.\\
+\begin{figure}[ht]
+\centering
+\begin{tabular}{cc}
+\includegraphics[width=0.5\textwidth,trim={60 30 60 10},clip]{img/StockCorrelation_unclassified_1.png}&
+\includegraphics[width=0.5\textwidth,trim={60 30 60 10},clip]{img/StockCorrelation_unclassified_2.png}\\
+\includegraphics[width=0.5\textwidth,trim={60 30 60 10},clip]{img/StockCorrelation_unclassified_3.png}&
+\includegraphics[width=0.5\textwidth,trim={60 30 60 10},clip]{img/StockCorrelation_unclassified_4.png}
+\end{tabular}
+\caption{Quote correlation matrix of 164 traded stocks between different trading days.}
+\label{figQuoteTemporalCorrelation}
+\end{figure}
+Interestingly enough, there seem to exist correlations between stock prices with a delay of one day for $T=1$ which decay fast for higher delay times ($T>1$). However, by inspection of the respective price evolutions it seems that this effect mostly arises because some few stocks, especially 3M Company (US88579Y1010), but also Adecco SA (CH0189177055) only reacted with one day delay to the CHF/EUR decoupling on January 15\textsuperscript{th} than others. It is highly doubtful whether without the massive effect of the CHF/EUR decoupling a significant correlation could have been found after one day.\\
+Figure \ref{figPositiveTemporalCorrelation} shows some examples.
+\begin{figure}[ht]
+\centering
+\begin{tabular}{cc}
+\includegraphics[width=0.5\textwidth,trim={110 30 110 20},clip]{img/TemporalCorrelation_1.png}&
+\includegraphics[width=0.5\textwidth,trim={110 30 110 20},clip]{img/TemporalCorrelation_2.png}\\
+\includegraphics[width=0.5\textwidth,trim={110 30 110 20},clip]{img/TemporalCorrelation_3.png}&
+\includegraphics[width=0.5\textwidth,trim={110 30 110 20},clip]{img/TemporalCorrelation_4.png}
+\end{tabular}
+\caption{Stock prices evolutions with a temporal correlation $>0.40$ for $T=1$. The delayed stock is drawn in blue.}
+\label{figPositiveTemporalCorrelation}
+\end{figure}
+\end{document}
