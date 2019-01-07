@@ -53,7 +53,51 @@ def cluster_data(data, num_clusters):
         cluster_indices_sorted[cluster_indices==index_order[i]] = i
     return cluster_indices_sorted.astype(int)
 
-def calc_correlation(marketcode, days, offset, today):
+def calc_data_change(marketcode, days, offset, today):
+    data_array, date_list, isin_list, issuer_list = base.get_clean_data(marketcode, days=3 * days, today_str=today)
+    data = np.array(data_array)
+    date_list = date_list[1:]
+    data_change = np.log(data[1:] / data[:-1])
+    # remove days without trading (data_change = 0 for all securities)
+    trading_days = ~np.all(data_change == 0, axis=1)
+    data_change = data_change[trading_days,:]
+    date_list = date_list[trading_days]
+    data_change = data_change[-days:,:]
+    date_list = date_list[-days:]
+
+    if offset > 0:
+        securities_traded = np.logical_and(
+            ~np.all(data_change[offset:] == 0, axis=0),
+            ~np.all(data_change[:-offset] == 0, axis=0)
+        )
+    else:
+        securities_traded = ~np.all(data_change == 0, axis=0)
+    data_change = data_change[:,securities_traded]
+
+    isin_list = isin_list[securities_traded]
+    issuer_list = issuer_list[securities_traded]
+
+    return data_change, date_list, isin_list, issuer_list
+
+
+def calc_correlation(time_series, offset):
+    if offset > 0:
+        series_count = time_series.shape[1]
+        corr = np.corrcoef(x=time_series[offset:], y=time_series[:-offset],rowvar=False)[:series_count,-series_count:]
+    else:
+        corr = np.corrcoef(time_series,rowvar=False)
+        corr = corr - np.diag(np.ones(len(corr)))
+    return corr
+
+def calc_covariance(time_series, offset):
+    if offset > 0:
+        series_count = time_series.shape[1]
+        cov = np.cov(m=time_series[offset:], y=time_series[:-offset],rowvar=False)[:series_count,-series_count:]
+    else:
+        cov = np.cov(time_series,rowvar=False)
+    return cov
+
+def calc_correlation_old(marketcode, days, offset, today):
 #    data_array, isin_desc = np.array(base.get_clean_data('SWX', 12, ['CH0012221716', 'CH0012255151']))
     data_array, _, isin_list, issuer_list = base.get_clean_data(marketcode, days=3 * days, today_str=today)
     data = np.array(data_array)
@@ -76,7 +120,7 @@ def calc_correlation(marketcode, days, offset, today):
         data_change = data_change[:,securities_traded]
     #    corr = np.cov(data_change,rowvar=False) / len(data_change)
         corr = np.corrcoef(data_change,rowvar=False)
-        corr = corr - np.diag(np.ones(len(corr)))
+    #    corr = corr - np.diag(np.ones(len(corr)))
 
     if len(corr.shape) == 0:
         corr = np.ones([1,1]) * corr
@@ -85,7 +129,7 @@ def calc_correlation(marketcode, days, offset, today):
     issuer_list = issuer_list[securities_traded]
     trading_days = len(data_change)
 
-    return corr, trading_days, isin_list, issuer_list
+    return corr, trading_days, isin_list, issuer_list    
 
 def get_first_day(last_day, interval_days):
     first_day = datetime.strptime(last_day, base.DATE_FORMAT)-timedelta(days=interval_days)
@@ -115,7 +159,8 @@ def calculate_market_dynamics(marketcode, correlation_length, offset, date_serie
     momentum_series = []
     for date in date_series:
         date_str = date.strftime(base.DATE_FORMAT)
-        corr, _, _, _ = calc_correlation(marketcode, correlation_length, offset, date_str)
+        data_change, _, _, _ = calc_data_change(marketcode, correlation_length, offset, date_str)
+        corr = calc_correlation(data_change, offset)
         if corr is not None:
             momentum = calc_momentum(corr)
         else:
@@ -126,7 +171,9 @@ def calculate_market_dynamics(marketcode, correlation_length, offset, date_serie
     return momentum_series
 
 def sample_quote_correlations(marketcode, days, offset, today, show_cluster, sample_size, filename=None):
-    corr, trading_days, isin_list, issuer_list = calc_correlation(marketcode, days, offset, today)
+    data_change, _, isin_list, issuer_list = calc_data_change(marketcode, days, offset, today)
+    corr = calc_correlation(data_change, offset)
+    trading_days = len(data_change)
     corr_sorted, cluster_idx, norm, corr_sorted_idx = order_correlation_matrix(corr, len(show_cluster))
     plot_correlation_matrix(corr_sorted, filename=filename)
     a = np.vstack((cluster_idx, isin_list, issuer_list, norm)).T[corr_sorted_idx]
@@ -173,7 +220,8 @@ def find_base_securities(marketcode, events):
     isin_cluster_events = []
     for event in events:
         isin_cluster = np.empty(len(securities)) * np.nan
-        corr, trading_days, isin_list, _ = calc_correlation(marketcode, days, offset, event['date'])
+        data_change, _, isin_list, _ = calc_data_change(marketcode, days, offset, event['date'])
+        corr = calc_correlation(data_change, offset)
         cluster_idx = cluster_data(corr, num_clusters=num_clusters)
         for i in range(num_clusters):
             isin_cluster[np.in1d(securities[:,0], isin_list[cluster_idx == i])] = i
@@ -184,7 +232,7 @@ def find_base_securities(marketcode, events):
     isin_cluster_events = isin_cluster_events[all_clusters_defined]
     print(securities[np.all(isin_cluster_events == 0, axis=1)])
 
-def animate_market_dynamics(marketcode, start_date_str, end_date_str, correlation_length, offset):
+def animate_market_dynamics(marketcode, start_date_str, end_date_str, correlation_length, offset, num_clusters):
     start_date = datetime.strptime(start_date_str, base.DATE_FORMAT)
     end_date = datetime.strptime(end_date_str, base.DATE_FORMAT)
     date_range = (start_date + timedelta(x) for x in range((end_date-start_date).days+1))
@@ -205,7 +253,8 @@ def animate_market_dynamics(marketcode, start_date_str, end_date_str, correlatio
     def update(date):
         date_str = date.strftime(base.DATE_FORMAT)
         print(date_str)
-        corr, _, _, _ = calc_correlation(marketcode, correlation_length, offset, date_str)
+        data_change, _, _, _ = calc_data_change(marketcode, correlation_length, offset, date_str)
+        corr = calc_correlation(data_change, offset)
         norm = np.average(corr, axis=0)
         corr_sorted_idx = np.lexsort([np.negative(norm)])
 #        cluster_idx = cluster_data(corr, num_clusters=4)
@@ -235,9 +284,11 @@ def calc_market_correlations(marketcode, start_date_str, end_date_str, step_days
     return filename
 
 def plot_time_series(filename, legends, events=None):
-    data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',', skiprows=1)
-    date_series = [datetime.strptime(date_str, base.DATE_FORMAT) for date_str in data_csv[:,0]]
-    data = data_csv[:,1:].astype(np.float)
+    data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
+    date_series = [datetime.strptime(date_str, base.DATE_FORMAT) for date_str in data_csv[1:,0]]
+    if legends is None:
+        legends = data_csv[0,1:]
+    data = data_csv[1:,1:].astype(np.float)
     color_list = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'white']
     fig, ax = plt.subplots(figsize=(11,6))
     ax.xaxis_date()
@@ -265,3 +316,57 @@ def plot_time_series(filename, legends, events=None):
     else:
         plt.savefig('img/'+filename+".png", format='png')
     legend = ax.legend().remove()
+
+def calc_PCA_market_dynamics(marketcode, start_date_str, end_date_str, series_length, step_days, offset, num_components):
+    start_date = datetime.strptime(start_date_str, base.DATE_FORMAT)
+    end_date = datetime.strptime(end_date_str, base.DATE_FORMAT)
+    date_range = (start_date + timedelta(x) for x in range(0,(end_date-start_date).days+1,step_days))
+    data_csv = [['date','securities','components'] + [str(x) for x in range(num_components)]]
+    for date in date_range:
+        date_str = date.strftime(base.DATE_FORMAT)
+        print(date_str)
+        data_change, _,  _, _ = calc_data_change(marketcode, series_length, offset, date_str)
+        cov = calc_covariance(data_change, offset)
+        eigen_value, _ = np.linalg.eigh(cov)
+        eigen_value_proportion = eigen_value / np.sum(eigen_value)
+        relevant_component_num = len(eigen_value_proportion[eigen_value_proportion>0.001])
+        data_csv.append([date_str, str(len(cov)), str(relevant_component_num)]+[str(x) for x in eigen_value_proportion[-1:-(num_components+1):-1]])
+    filename = "market_pca_{}_{}-{} ({})".format(marketcode, base.date_stamp(start_date_str),base.date_stamp(end_date_str),series_length)
+    np.savetxt('csv/'+filename+'.csv', data_csv, fmt='%s', delimiter=',')
+    return filename
+
+def sample_PCA(marketcode, date_str, series_length, offset):
+    time_series, date_list, _, _ = calc_data_change(marketcode, series_length, offset, date_str)
+    time_series_avg = np.average(time_series, axis=0)
+    time_series_shifted = time_series - time_series_avg
+#    cov = np.matmul(np.transpose(time_series_shifted), time_series_shifted) / (len(time_series_shifted) - 1)
+    time_series_cov = np.cov(time_series, rowvar=False)
+    eigen_value, eigen_vector = np.linalg.eigh(time_series_cov)
+    eigen_value_proportion = eigen_value / np.sum(eigen_value)
+#    check = np.matmul(time_series_shifted, eigen_vector)
+#    check = np.matmul(np.transpose(check), check)/(len(time_series) - 1)
+    principal_component = np.matmul(time_series_shifted, eigen_vector)
+#    check = np.matmul(np.transpose(principal_component), principal_component) / (len(time_series) - 1)
+    principal_component = principal_component + np.matmul(time_series_avg, eigen_vector)
+    pc_sample_num = 3
+    header = ['date']
+    data_series = np.array([[date.strftime(base.DATE_FORMAT) for date in date_list]])
+    # direction of eigen_vectors only fixed by factor of +-1 which may cause flipping of principals
+    # time_series_sign will be iteratively stripped by each principal component in order to align the principal component's sign
+    time_series_sign = np.array(time_series_shifted)
+    for pc_idx in range(pc_sample_num):
+        # principal component
+        pc = principal_component[:,-(pc_idx+1)]
+        # weigth
+        w = np.expand_dims(eigen_vector[-(pc_idx+1),:],axis=1)
+        # align pc_idx-th principal with time_series_shifted
+        pc_sign = np.sign(np.sum(np.matmul(pc,time_series_sign)))
+        # remove the pc_idx-th principal from time_series_shifted
+        time_series_sign = time_series_sign - np.matmul(np.matmul(time_series_sign,w),w.T)
+
+        header.append("PC {} ({:.0f}%)".format(str(pc_idx), 100*eigen_value_proportion[-(pc_idx+1)]))
+        data_series = np.append(data_series,[pc_sign * principal_component[:,-(pc_idx+1)]], axis=0)
+    data_csv = np.append(np.array([header]),np.transpose(data_series),axis=0)   
+    filename = "market_pca_sample_{}_{} ({})".format(marketcode, base.date_stamp(date_str), series_length)
+    np.savetxt('csv/'+filename+'.csv', data_csv, fmt='%s', delimiter=',')
+    return filename
