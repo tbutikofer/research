@@ -91,10 +91,10 @@ def calc_correlation(time_series, offset):
 
 def calc_covariance(time_series, offset):
     if offset > 0:
-        series_count = time_series.shape[1]
-        cov = np.cov(m=time_series[offset:], y=time_series[:-offset],rowvar=False)[:series_count,-series_count:]
+        feature_count = time_series.shape[0]
+        cov = np.cov(m=time_series[offset:], y=time_series[:-offset])[:feature_count,-feature_count:]
     else:
-        cov = np.cov(time_series,rowvar=False)
+        cov = np.cov(time_series)
     return cov
 
 def calc_correlation_old(marketcode, days, offset, today):
@@ -154,6 +154,16 @@ def plot_correlation_matrix(corr, filename=None):
         plt.show()
     else:
         plt.savefig('img/'+filename+".png", format='png')
+
+def plot_matrix(filename, val_range, num_clusters=0):
+    data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
+    data = data_csv[1:,1:].astype(float)
+
+    plt.imshow(data, cmap=plt.get_cmap('jet'))
+    plt.clim(val_range)
+    plt.colorbar()
+    plt.axis('off')
+    plt.savefig('img/'+filename+".png", format='png')
 
 def calculate_market_dynamics(marketcode, correlation_length, offset, date_series):
     momentum_series = []
@@ -335,38 +345,86 @@ def calc_PCA_market_dynamics(marketcode, start_date_str, end_date_str, series_le
     np.savetxt('csv/'+filename+'.csv', data_csv, fmt='%s', delimiter=',')
     return filename
 
-def sample_PCA(marketcode, date_str, series_length, offset):
-    time_series, date_list, _, _ = calc_data_change(marketcode, series_length, offset, date_str)
+def sample_PCA(marketcode, date_str, series_length, offset, pc_sample_num):
+    time_series, date_list, isin_list, _ = calc_data_change(marketcode, series_length, offset, date_str)
     time_series_avg = np.average(time_series, axis=0)
     time_series_shifted = time_series - time_series_avg
 #    cov = np.matmul(np.transpose(time_series_shifted), time_series_shifted) / (len(time_series_shifted) - 1)
-    time_series_cov = np.cov(time_series, rowvar=False)
+    time_series_cov = np.cov(time_series)
     eigen_value, eigen_vector = np.linalg.eigh(time_series_cov)
+    #principal_component = np.matmul(time_series_cov, eigen_vector)
+
     eigen_value_proportion = eigen_value / np.sum(eigen_value)
-#    check = np.matmul(time_series_shifted, eigen_vector)
-#    check = np.matmul(np.transpose(check), check)/(len(time_series) - 1)
-    principal_component = np.matmul(time_series_shifted, eigen_vector)
-#    check = np.matmul(np.transpose(principal_component), principal_component) / (len(time_series) - 1)
-    principal_component = principal_component + np.matmul(time_series_avg, eigen_vector)
-    pc_sample_num = 3
     header = ['date']
+    header_scatter = []
     data_series = np.array([[date.strftime(base.DATE_FORMAT) for date in date_list]])
+    data_scatter = np.array([[]])
     # direction of eigen_vectors only fixed by factor of +-1 which may cause flipping of principals
-    # time_series_sign will be iteratively stripped by each principal component in order to align the principal component's sign
-    time_series_sign = np.array(time_series_shifted)
+    # time_series will be iteratively stripped by each principal component in order to align the principal component's sign
     for pc_idx in range(pc_sample_num):
-        # principal component
-        pc = principal_component[:,-(pc_idx+1)]
-        # weigth
-        w = np.expand_dims(eigen_vector[-(pc_idx+1),:],axis=1)
-        # align pc_idx-th principal with time_series_shifted
-        pc_sign = np.sign(np.sum(np.matmul(pc,time_series_sign)))
-        # remove the pc_idx-th principal from time_series_shifted
-        time_series_sign = time_series_sign - np.matmul(np.matmul(time_series_sign,w),w.T)
+        # eigen_vector with largest eigenvalue
+        #w = np.expand_dims(eigen_vector[:,-(pc_idx+1)],axis=0)
+        w = np.expand_dims(eigen_vector[:,-(pc_idx+1)],axis=1)
+        # principal component: projection of time series onto eigenvector
+        pc = np.matmul(time_series_cov,w)
+        #pc = principal_component[:,-(pc_idx+1)]
+        # detect orientation of pc with respect to time series
+        pc_sign = np.sign(np.sum(np.matmul(pc.T,time_series)))
+        # remove the pc_idx-th principal from time_series
+        time_series_shifted = time_series - np.matmul(w,np.matmul(w.T,time_series))
 
         header.append("PC {} ({:.0f}%)".format(str(pc_idx), 100*eigen_value_proportion[-(pc_idx+1)]))
-        data_series = np.append(data_series,[pc_sign * principal_component[:,-(pc_idx+1)]], axis=0)
-    data_csv = np.append(np.array([header]),np.transpose(data_series),axis=0)   
-    filename = "market_pca_sample_{}_{} ({})".format(marketcode, base.date_stamp(date_str), series_length)
+        data_series = np.append(data_series,[pc_sign * np.squeeze(pc)], axis=0)
+    data_csv = np.append(np.array([header]),np.transpose(data_series),axis=0)
+    filename_data = "market_pca_sample_{}_{} ({})".format(marketcode, base.date_stamp(date_str), series_length)
+    np.savetxt('csv/'+filename_data+'.csv', data_csv, fmt='%s', delimiter=',')
+
+    header = ["ISIN"] + ["PC {}".format(pc_idx) for pc_idx in range(pc_sample_num)]
+    data_csv = np.matmul(np.matmul(time_series_cov, eigen_vector)[:,-pc_sample_num:].T,time_series).T
+    # highest eigen value first
+    data_csv = np.flip(data_csv,axis=1)
+    data_csv = np.concatenate((np.expand_dims(isin_list,axis=1),data_csv),axis=1)
+    data_csv = np.concatenate(([header],data_csv),axis=0)
+    filename_scatter = "market_pca_scatter_{}_{} ({})".format(marketcode, base.date_stamp(date_str), series_length)
+    np.savetxt('csv/'+filename_scatter+'.csv', data_csv, fmt='%s', delimiter=',')
+    return filename_data, filename_scatter
+
+def plot_scatter(filename, rescale=True):
+    data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
+    legend = data_csv[0,1:]
+    data = data_csv[1:,1:].astype(np.float)
+    fig, ax = plt.subplots(figsize=(6,6))
+    plt.xlabel(legend[0])
+    plt.ylabel(legend[1])
+    if rescale:
+        data = data/np.std(data, axis=0)
+        ax.set_xlim([-5,5])
+        ax.set_ylim([-5,5])
+    plt.scatter(data[:,0], data[:,1], marker='.', c='k')
+    plt.savefig('img/'+filename+".png", format='png')
+
+def calc_market_correlation(marketcode, date_str, correlation_length, num_clusters=0, offset=0):
+    data_change, _, isin_list, _ = calc_data_change(marketcode, correlation_length, offset, date_str)
+    corr = calc_correlation(data_change, offset)
+
+    if num_clusters>0:
+        cluster_idx = cluster_data(corr, num_clusters)
+        norm = np.average(corr, axis=0)
+        data_sorted_idx = np.lexsort([np.negative(norm), cluster_idx])
+        corr = corr[data_sorted_idx,:][:,data_sorted_idx]
+        isin_list = isin_list[data_sorted_idx]
+
+    header = ['isin'] + [isin for isin in isin_list]
+    data_csv = np.array([header])
+    for isin_idx, isin in enumerate(isin_list):
+        data_csv = np.append(data_csv, np.concatenate(([[isin]], [corr[isin_idx]]), axis=1), axis=0)
+    filename = "market_correlation_{}_{} ({})".format(marketcode, base.date_stamp(date_str), correlation_length)
     np.savetxt('csv/'+filename+'.csv', data_csv, fmt='%s', delimiter=',')
     return filename
+
+def calc_noise_scaling(marketcode, date_str, correlation_lengths, offset=0):
+    for correlation_length in correlation_lengths:
+        data_change, _, isin_list, _ = calc_data_change(marketcode, correlation_length, offset, date_str)
+        corr = calc_correlation(data_change, offset)
+        momentum = calc_momentum(corr)
+        print("{},{:0.4f}".format(correlation_length, momentum))

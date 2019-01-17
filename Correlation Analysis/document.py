@@ -15,15 +15,22 @@ events_SWX = [
     {'label':'11', 'date': '05.02.2018', 'text':'Mini-crash NYSE'},
     ]
 
-#filename = correlate.calc_market_correlations('SWX', '01.01.2000', '31.12.2000', step_days=7, correlation_lengths=[5,20,260], offset=0)
+#filename = correlate.calc_market_correlations('SWX', '01.02.2003', correlation_length=5, offset=0)
+#filename = correlate.calc_market_correlations('SWX', '01.02.2003', '02.02.2003', step_days=7, correlation_lengths=[4, 8,16,32,64,128,256,512], offset=0)
 #filename = 'market_correlation_SWX_20000101-20181231'
 #correlate.plot_time_series(filename,['5 days','20 days','260 days'], events_SWX)
+
+#filename = correlate.calc_market_correlation('SWX', '01.02.2003', 260, num_clusters=1)
+#correlate.plot_matrix(filename, (-1,1))
+
+correlate.calc_noise_scaling('SWX', '01.02.2015', [4,8,16,32,64,128,256,512,1024])
 
 #correlate.animate_market_dynamics('SWX','01.09.2001','10.09.2001', correlation_length=20, offset=0, num_clusters=3)
 #filename = correlate.calc_PCA_market_dynamics('SWX','01.01.2000','31.12.2018', series_length=20, step_days=7, offset=0, num_components=20)
 
-filename = correlate.sample_PCA('SWX','20.09.2001', series_length=20, offset=0)
-correlate.plot_time_series(filename, legends=None, events=None)
+#filename_series, filename_scatter = correlate.sample_PCA('SWX','17.06.2006', series_length=20, offset=0, pc_sample_num=3)
+#correlate.plot_time_series(filename, legends=None, events=None)
+#correlate.plot_scatter(filename_scatter)
 
 def plot_SWX_correlations(filename, events=None):
     timeseries = base.load_object(dataset_SWX_correlations)
