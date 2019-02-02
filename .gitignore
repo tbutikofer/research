@@ -2,8 +2,12 @@
 *.aux
 *.out
 *.pytxcode
+*.bbl
+*.blg
+*.log
+*.pdf
+*/pythontex-files-*
 Correlation Analysis/csv/*
 Correlation Analysis/img/*
 Correlation Analysis/tmp_tf/*
-Correlation Analysis/pythontex-files-Correlation-Analysis/*
-Correlation Analysis/Correlation Analysis.log
+

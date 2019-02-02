@@ -162,7 +162,7 @@ def plot_matrix(filename, val_range, num_clusters=0):
     plt.imshow(data, cmap=plt.get_cmap('jet'))
     plt.clim(val_range)
     plt.colorbar()
-    plt.axis('off')
+    ax.axis('off')
     plt.savefig('img/'+filename+".png", format='png')
 
 def calculate_market_dynamics(marketcode, correlation_length, offset, date_series):
