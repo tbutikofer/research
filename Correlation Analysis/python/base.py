@@ -2,8 +2,10 @@ import MySQLdb
 import pandas as pd
 import numpy as np
 import matplotlib.dates as mdates
+import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.optimize import curve_fit
 from datetime import datetime, timedelta, date
 import pickle
 
@@ -161,14 +163,13 @@ def load_object(filename):
 #         print(r"{} & {} & {}\\".format(value['label'], value['date'], value['text']))
 #     print(r"\end{tabular}")
 
-def latex_table(filename):
-    data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
-    row_template = " & ".join(["{}" for _ in data_csv[0]])
-    column_names = data_csv[0]
+def latex_table(data_array):
+    row_template = " & ".join(["{}" for _ in data_array[0]])
+    column_names = data_array[0]
     print(row_template.format(*column_names)+"\\\\")
     print(r"\hline")
     table_rows = []
-    for table_row in data_csv[1:]:
+    for table_row in data_array[1:]:
         table_row_esc = [value.replace('&', '\\&') for value in table_row]
         table_rows.append(row_template.format(*table_row_esc))
     table_string = "\\\\\n".join([row for row in table_rows])
@@ -206,7 +207,7 @@ def date_stamp(date_str):
 #buffer_data, isin_name = read_buffer_data(get_db_connection(), 'SWX')
 ii=42
 
-def plot_time_series(filename, legends, events=None):
+def plot_time_series(filename, legends, events):
     data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
     date_series = [datetime.strptime(date_str, DATE_FORMAT) for date_str in data_csv[1:,0]]
     if legends is None:
@@ -263,3 +264,104 @@ def plot_matrix(filename, val_range):
     fig.savefig('img/'+filename+".png", format='png')
     plt.clf()
 
+def load_list(filename):
+    return np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
+
+def prob_dist(x, a, b, c):
+    return np.exp(a*x*(1-np.exp(b*x))/(1+np.exp(b*x))+c)
+
+def plot_histogram(filename, func_param, xlabel):
+    data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
+    data = data_csv.astype(float)
+    bin_avg = data[:,0]
+    hist = data[:,1]
+    bin_size = bin_avg[1]-bin_avg[0]
+
+    plt.bar(bin_avg, hist, width=bin_size, align='center', fill=False, log=True)
+
+    popt, pcov = curve_fit(np.log(prob_dist), bin_avg, np.log(hist), p0=(22.0, 160.0, 2.4))
+    print(popt)
+
+    plt.plot(bin_avg, prob_dist(bin_avg, func_param[0], func_param[1], func_param[2]), 'k--', linewidth=2)
+#    plt.show()
+    plt.xlabel(xlabel)
+    plt.savefig('img/'+filename+".png", format='png')
+    plt.clf()
+
+def simulated_quote_changes(dist_params, change_range):
+    dist_type = len(dist_params)
+    if dist_type == 3:
+        a, b, c = dist_params
+        max_norm = -1.0
+        for _ in range(10000):
+            x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
+            p = prob_dist(x, dist_params[0], dist_params[1], dist_params[2])
+            max_norm = max_norm if p<max_norm else p
+#    print(max_norm)
+
+    while True:
+        if dist_type == 0:
+            x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
+        elif dist_type == 1:
+            x = np.random.randn()/np.sqrt(dist_params[0])
+        elif dist_type == 3:
+            while True:
+                x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
+                acceptance_prop = np.random.rand()
+                p = prob_dist(x, dist_params[0], dist_params[1], dist_params[2])
+                if p/max_norm > acceptance_prop:
+                    break
+        yield x
+
+def plot_normal_stress(filename):
+    data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
+    data = data_csv[1:,:].astype(np.float)
+
+    def func(x, a, b):
+        return a * np.power(x,b)
+
+    popt, pcov = curve_fit(func, data[:,0], data[:,1])
+    #print(popt)
+    #print(func(data[:,0], popt[0], popt[1]))
+
+    color_list = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'white']
+    style_list = ['-', '--', ':', '-.']
+    fig, ax = plt.subplots(figsize=(11,6))
+    ax.plot(
+        data[:,0],
+        data[:,1],
+        color='black',
+        linestyle='None',
+        marker='o',
+        mfc='None'
+        )
+    ax.plot(
+        data[:,0],
+        func(data[:,0], popt[0], popt[1]),
+        linestyle=':',
+        color='black',
+        )
+    ax.axis([4, 350, 0.05, 0.8])
+    plt.xscale('log')
+    plt.xticks([5, 10, 20, 40, 80, 160, 320])
+    plt.yscale('log')
+    plt.yticks([0.05, 0.1, 0.2, 0.4, 0.8])
+    plt.minorticks_off()
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.floor(np.log10(y)),0))).format(y))))
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.floor(np.log10(y)),0))).format(y))))
+    plt.xlabel("$T$")
+    plt.ylabel("$f^0_T$")
+    plt.savefig('img/'+filename+".png", format='png')
+    plt.clf()
+
+    return popt, np.sqrt(np.diag(pcov))
+
+def test_distribution(dist_params, change_range):
+    simulation = simulated_quote_changes(dist_params, change_range)
+    x = [next(simulation) for _ in range(100000)]
+    fig, ax = plt.subplots()
+
+    # the histogram of the data
+    num_bins = 100
+    n, bins, patches = ax.hist(x, num_bins, density=1)
+    plt.show()

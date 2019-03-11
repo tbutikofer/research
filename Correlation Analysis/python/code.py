@@ -13,7 +13,7 @@ def calc_covariance(time_series, offset):
     return cov
 
 def calc_stress(time_series, offset):
-    if time_series.shape[1] > 0:
+    if time_series.shape[1] > 1:
         if offset > 0:
             series_count = time_series.shape[1]
             corr = np.corrcoef(x=time_series[offset:], y=time_series[:-offset],rowvar=False)[:series_count,-series_count:]
@@ -95,7 +95,7 @@ def calculate_market_dynamics(marketcode, correlation_length, offset, date_serie
 
     return momentum_series
 
-def calc_market_momentum(marketcode, start_date_str, end_date_str, series_lengths, step_days, offset):
+def calc_market_stress_series(marketcode, start_date_str, end_date_str, series_lengths, step_days, offset):
     date_series = base.create_date_series(start_date_str, end_date_str, step_days)
     header = ['date']
     data_series = np.array([[date.strftime(base.DATE_FORMAT) for date in date_series]])
@@ -105,7 +105,7 @@ def calc_market_momentum(marketcode, start_date_str, end_date_str, series_length
         data_series = np.append(data_series, [momentum_series], axis=0)
     #    data_series.append({'id':correlation_length, 'data':[{'data':momentum_series}]})
     data_csv = np.append(np.array([header]),np.transpose(data_series),axis=0)   
-    filename = "market_momentum_{}_{}-{}".format(marketcode, base.date_stamp(start_date_str),base.date_stamp(end_date_str))
+    filename = "market_stress_{}_{}-{}".format(marketcode, base.date_stamp(start_date_str),base.date_stamp(end_date_str))
     np.savetxt('csv/'+filename+'.csv', data_csv, fmt='%s', delimiter=',')
     return filename
 
@@ -161,8 +161,7 @@ def calc_market_stress(marketcode, date_str, correlation_length, num_clusters=0,
     np.savetxt('csv/'+filename+'.csv', data_csv, fmt='%s', delimiter=',')
     return filename
 
-def find_base_securities(marketcode, event_filename, date_from, date_to, correlation_length):
-    events = np.loadtxt('csv/'+event_filename+'.csv', dtype=np.unicode, delimiter=',')
+def find_base_securities(marketcode, events, date_from, date_to, correlation_length):
     securities = base.get_securities(marketcode)
     date0 = datetime.strptime(date_from, base.DATE_FORMAT)
     date1 = datetime.strptime(date_to, base.DATE_FORMAT)
@@ -192,3 +191,32 @@ def find_base_securities(marketcode, event_filename, date_from, date_to, correla
     filename = "market_base_{}_{}-{}-{}".format(marketcode, base.date_stamp(date_from), base.date_stamp(date_to), correlation_length)
     np.savetxt('csv/'+filename+'.csv', data_csv, fmt='%s', delimiter=',')
     return filename
+
+def simulate_random_stress(trading_days_list, securities, dist_params, change_range):
+    simulation = base.simulated_quote_changes(dist_params, change_range)
+
+    data = [['trading days', 'average stress', 'std stress']]
+    for trading_days in trading_days_list:
+        momentum_series = []
+        for _ in range(1000):
+            data_change = [next(simulation) for _ in range(trading_days*securities)]
+            data_change = np.reshape(data_change, (trading_days,securities))
+            stress = calc_stress(data_change, offset=0)
+            momentum = calc_momentum(stress)
+            momentum_series.append(momentum)
+        data.append([trading_days, np.average(momentum_series), np.std(momentum_series)])
+
+    filename = "market_norm_stress_{}".format(["uniform","normal","","realistic"][len(dist_params)])
+    np.savetxt('csv/'+filename+'.csv', data, fmt='%s', delimiter=',')
+    print(data)
+
+def calc_change_distribution(marketcode, change_range, trading_days, end_date):
+    data_change, date_list, _, _ = calc_data_change(marketcode, trading_days, 0, end_date)
+    data_change = data_change.flatten()
+    hist, bins = np.histogram(data_change,bins=100, range = change_range, density=True)
+    date_start = date_list[0].strftime(base.DATE_FORMAT)
+    date_end = date_list[-1].strftime(base.DATE_FORMAT)
+    filename = "market_probability_{}_{}-{}".format(marketcode, base.date_stamp(date_start), base.date_stamp(date_end))
+    bins_avg = (bins[1:]+bins[:-1])/2
+    np.savetxt('csv/'+filename+'.csv', np.vstack((bins_avg,hist)).T, fmt='%s', delimiter=',')
+    return filename, (date_start, date_end), len(data_change)

@@ -4,8 +4,9 @@
 \usepackage{pythontex}
 \usepackage{graphicx}
 \usepackage{subcaption}
-\usepackage{placeins}
 \usepackage{url}
+\usepackage{placeins} 
+\usepackage{multirow}
 \begin{document}
 \pyc{import python.base as base, python.code as code}
 \title{Correlation analysis}
@@ -17,13 +18,13 @@ Your abstract goes here...
 \end{abstract}
 \section{Introduction}
 %\py{2+5}
-This article analyses the clustering dynamics of securities traded in a market. Which securities exhibit similar gains/losses over a time period.
-The closing quotes $q$ of a security $s$ traded on market $m$ during the time interval $\mathbb{T}$ on $T+1$ trading days are denoted by
+This article analyses the collective dynamics for gains/losses of securities traded in a market over a time period.
+The series of closing quotes $q$ for a security $s$, traded on market $m$ during the time interval $\mathbb{T}$ with $T+1$ trading days are denoted by
 \begin{equation}
 q^{(m)}_{s}:\mathbb{T}\rightarrow\mathbb{R}\quad.
 \label{eqDefQuoteSeries}
 \end{equation}
-Let $\mathbb{S}^{(m)}_\mathbb{T}$ be the set of $S$ securities which are all traded both, at the first and last trading day of $m$ within the interval $\mathbb{T}$.\\
+Let $\mathbb{S}^{(m)}_\mathbb{T}$ be the set of $S$ securities which are all traded both, at the first and last trading day of a market $m$ within the interval $\mathbb{T}$.\\
 By introducing an arbitrary order into $\mathbb{S}^{(m)}_\mathbb{T}$, the function
 \begin{eqnarray}
 Q^{(m)}_{\mathbb{T}}:\mathbb{S}\times\mathbb{T}&\rightarrow&\mathbb{R}\\
@@ -33,7 +34,7 @@ defines a matrix $Q^{(m)}_{\mathbb{T}}$ for $S$ securities with $T+1$ quotes eac
 \begin{equation}
 (Q^{(m)}_{\mathbb{T}})_{st}\equiv Q^{(m)}_{\mathbb{T}}(s,t)\quad.
 \end{equation}
-The next sections of this article will analyze the series $\Delta^{(m)}_{\mathbb{T}}$ of relative changes, gains and losses normalized by a logarithm 
+Instead of analyzing absolute changes in a security's price, this article will use the series $\Delta^{(m)}_{\mathbb{T}}$ of relative changes, normalized by a logarithm 
 \begin{equation}
 \left(\Delta^{(m)}_{\mathbb{T}}\right)_{st} \equiv \log\left[\frac{Q^{(m)}_{\mathbb{T}}(s,t)}{Q^{(m)}_{\mathbb{T}}(s,t-1)}\right]\quad t\in\{1\ldots T\}\quad.
 \end{equation}
@@ -52,23 +53,10 @@ while the average over time will be written as
 In order to determine what information can be gleaned from the principal component and market stress analysis, both methods will be applied to daily quotes from different markets and the results presented in the following section.
 \section{Methods}
 \subsection{Data preparation}
-For less volatile securities, gaps may occur in their time series of day closing quotes on trading days without a single trade. Such gaps are filled with the last known value of a preceding trading day.\\
-Market holidays are regarded as non-existent. I.e. trading days are considered as subsequent, even if they are separated by one or multiple market holidays. Without trades, the market doesn't exist.
-\subsection{Principal component analysis}
-Principal component analysis constructs a basis $p_j$ of $\min(T,S-1)$ uncorrelated time series which span the space of the $S$ time series $\Delta$.\\
-By defining
-\begin{equation}
-\bar{\Delta}_s(t)\equiv\Delta_s(t)-\langle\Delta(t)\rangle_\mathbb{S}
-\end{equation}
-the shifted time series $\bar{\Delta}_s$ have an average $\langle\bar{\Delta}(t)\rangle_\mathbb{S}=0$ and the covariance matrix of $\Delta$ reduces to
-\begin{equation}
-C_\mathbb{T}(\Delta)=\frac{1}{S}\bar{\Delta}\bar{\Delta}^\top\quad.
-\end{equation}
-$C_\mathbb{T}$ is a symmetric $T\times T$ matrix with real eigenvalues $\{\lambda_t\}_{t\in\mathbb{T}}$.\\
-The eigenvector to $C_\mathbb{T}$  with the largest eigenvalue contribute is most similar to the time series $\bar{\Delta}$. From now on, the article assumes that eigenvectors $p_j$ are ordered according to the values of their eigenvalues with ${\lambda_1\geq\lambda_1\geq\ldots\geq\lambda_T}$.\\
-If there is a common evolution of quotes for many securities, this common evolution could be found in the first principal component $p_1$. I.e. the larger the contribution of $\lambda_1$ is to $Tr(C_\mathbb{T})=\sum_{j=1}^T\lambda_j$, the larger is the commonality between the evolution of the securities quotes in time interval $\mathbb{T}$.
-\subsection{Correlation stress analysis}
-A dual approach to identifying common trends in security quote evolution is to use the Pearson correlation between securities over a time interval $\mathbb{T}$.
+For less volatile securities, gaps may occur in their time series of day closing quotes on trading days without a single trade. Such gaps are filled with the last known value of the preceding trading day.\\
+Market holidays are regarded as non-existent. I.e. trading days are considered as subsequent, even if they are separated by one or multiple market holidays. The motivation being that without trades, there is no market.
+\subsection{Market stress analysis}
+The Pearson correlation between security quote time series over a time interval $\mathbb{T}$ can be used to quantify the similarity between a pair of security quote series.
 \begin{equation}
 \left(C_\mathbb{S}\right)_{s_1s_2}=\frac{T}{T-1}\frac{\langle\left(\Delta_{s_1}-\langle\Delta_{s_1}\rangle_\mathbb{T}\right)\left(\Delta_{s_2}-\langle\Delta_{s_2}\rangle_\mathbb{T}\right)\rangle_\mathbb{T}}{\sigma(\Delta_{s_1})\sigma(\Delta_{s_2})}
 \end{equation}
@@ -76,133 +64,128 @@ with $\sigma_s$ being the standard deviation over the time series $\Delta_s$:
 \begin{equation}
 \sigma_s \equiv \sqrt{\frac{T}{T-1}\langle\left(\Delta_{s}-\langle\Delta_{s}\rangle_\mathbb{T}\right)^2\rangle_\mathbb{T}}
 \end{equation}
-This measure normalizes the gain/loss amplitudes of $\Delta$ and is suitable identify securities with comparable trends without regard to the relative changes.\\
+This measure normalizes the gain/loss amplitudes of $\Delta$ and is suitable to identify securities with comparable trends without regard to the relative changes.\\
+This article defines the market stress matrix $M_\mathbb{S}$ as:
+\begin{equation}
+M_\mathbb{S}\equiv C_\mathbb{S} - \textrm{1}_\mathbb{S}\quad.
+\end{equation}
+The market stress matrix $M_\mathbb{S}$ is a symmetric with diagonal elements all equal to $0$.\\
+Collective price movements during a trading interval indicate that the securities prices are not assessed individually by the market, but that a collection of securities react to some kind of market stress\footnote{Note that $M_\mathbb{S}$ also resemble a viscous stress tensor of a perfectly fluid material in $S$ dimensions.}.\\
+With this measure, $M_\mathbb{S}$ quantifies for each security $s$ the experienced stress $f_s$ during the time period $\mathbb{T}$.
+\begin{equation}
+f_s\equiv (M_\mathbb{S}^\top M_\mathbb{S})_{ss}
+\end{equation}
+The security's stress $f_s$ is an emergent property of an individual security, reacting on the market dynamics.\\
 
-The correlation matrix $C_\mathbb{S}$ is a symmetric matrix with constant diagonal elements all equal to $1$. These properties resemble a stress tensor of a perfectly fluid material without in $S$ dimensions. In this analogy, $C_\mathbb{S}$ quantifies for each security $s$ the experienced stress $f_s$ within the market during the time period $\mathbb{T}$.
+As a measure of the average market stress this article will use
 \begin{equation}
-f_s\equiv \frac{1}{S}(C_\mathbb{S}^\top C_\mathbb{S})_{ss}
+f^{(m)}_\mathbb{T} \equiv \langle f_s\rangle=\frac{1}{S}\sum_{s\in\mathbb{S}}f_s=\frac{1}{S}Tr\left(M_\mathbb{S}^\top M_\mathbb{S}\right)\quad.
 \end{equation}
-It should be noted, that the security's stress $f_s$ is an emergent property of the market dynamics. As a measure of the average market stress this article will use
+\begin{pycode}
+securities = 100
+change_range = (-0.5, 0.5)
+filename = 'market_norm_stress_uniform'
+#filename = code.simulate_random_stress(trading_days_list, securities, (), change_range)
+param_fit,  param_error= base.plot_normal_stress(filename)
+\end{pycode}
+A market can be assigned an intrinsic average stress, by assuming completely random quote fluctuations $\Delta_\mathbb{T}$. This intrinsic stress can be used as a baseline to compare against the effective market stress.\\
+By simulating quote fluctuations $\Delta_\mathbb{T}$ with a uniform probability distribution between $\left[-\Delta,\Delta\right]$, the average market stress shows a dependency on the length of the time period $\mathbb{T}$. This relationship can be approximated by
 \begin{equation}
-f^{(m)}_\mathbb{T} = \langle f_s\rangle=\frac{1}{S}Tr\left(C_\mathbb{S}^\top C_\mathbb{S}\right)
+f^0_\mathbb{T} \approx \alpha T^\beta\qquad\alpha=\py{"{:0.2f}".format(param_fit[0])}\pm\py{"{:0.2f}".format(param_error[0])}\quad\beta=\py{"{:0.2f}".format(param_fit[1])}\pm\py{"{:0.2f}".format(param_error[1])}\quad.
+\label{eqInstrinsicMarketStress}
 \end{equation}
+\begin{figure}
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 15 50 50}},clip]{{{{"img/{}"}}}}'.format(filename))}
+\caption{Dependency of the intrinsic market stress $f^0_\mathbb{T}$ on $T$ on a logarithmic scale. Circles show simulated average market stresses for a market with \py{securities} securities and a uniform distribution between the interval $\left[\py{change_range[0]}, \py{change_range[1]}\right]$ for $\Delta_\mathbb{T}$. The dotted line indicates the approximation  (\ref{eqInstrinsicMarketStress})}.
+\label{figIntrinsicMarketStress}
+\end{figure}
+\FloatBarrier
+\subsection{Principal securities}
+At times with high market stress $f^{(m)}_\mathbb{T}$ price movements of many securities synchronize. This article defines principal securities as the set of securities whose price movements always synchronize at times of high market stress. In this sense, principal securities represent the general price dynamics of the whole market in times of high market stress.\\
+The search for such principal securities uses the stress matrix $M_\mathbb{S}$ at times of maximal $f^{(m)}_\mathbb{T}$ and employs the K-means algorithm to group all securities into 4 clusters with similar stress vectors. If, for a list of high stress days, the same securities always end up in the cluster with highest stress average, they are considered candidates for principal securities of the respective market.\\
+
+The existence of principal securities should not be taken for granted.
+\FloatBarrier
+\pagebreak
 \section{Results}
+\begin{pycode}
+market_events = base.load_list('market_stress_events')
+\end{pycode}
 \subsection{Swiss stock exchange SWX}
 \begin{pycode}
-events_SWX = [
-    ['\\#',  'Date', 'Event'],
-    ['1',  '16.06.2006', 'unkown'],
-    ['2',  '11.08.2007', 'EZB injects 150 bEUR due to US real estate and mortage crisis'],
-    ['3',  '21.01.2008', 'Stock crash due to US real estate and mortage crisis'],
-    ['4',  '13.10.2008', 'Speculations about EU bail-outs causes euphoria'],
-    ['5',  '08.05.2010', 'EU 750 bEUR bail-out fonds / Greece crisis'],
-    ['6',  '04.08.2011', 'EZB starts buying of government bonds'],
-    ['7',  '06.09.2011', 'start of EUR:CHF ceiling'],
-    ['8',  '15.01.2015', 'end of EUR:CHF ceiling'],
-    ['9',  '24.08.2015', 'Mini-crash "black monday"'],
-    ['10', '24.06.2016', 'Brexit referendum'],
-    ['11', '05.02.2018', 'Mini-crash NYSE']
-    ]
-
 market_code = 'SWX'
 date_from = '01.01.2000'
 date_to = '31.12.2018'
+zoom_date_from = '01.01.2016'
+zoom_date_to = '31.12.2016'
 series_length = 20
 
 isin_count = base.market_info(market_code, date_from, date_to)
 
-filename_pca = 'market_pca_SWX_20000101-20181231_20'
-#filename_pca = code.calc_PCA_market_dynamics(market_code,date_from,date_to, series_length=series_length, step_days=7, offset=0, num_components=3)
-base.plot_time_series(filename_pca, legends=None, events=None)
-
-filename_momentum = 'market_momentum_SWX_20000101-20181231'
-#filename_momentum = code.calc_market_momentum(market_code,date_from,date_to, series_lengths=[series_length], step_days=7, offset=0)
-base.plot_time_series(filename_momentum, legends=[''], events=events_SWX)
+filename_market_full_stress = 'market_momentum_SWX_20000101-20181231'
+#filename_market_full_stress = code.calc_market_momentum(market_code,date_from,date_to, series_lengths=[series_length], step_days=7, offset=0)
+base.plot_time_series(filename_market_full_stress, legends=[''], events=market_events)
+filename_market_zoom_stress = 'market_momentum_SWX_20160101-20161231'
+#filename_market_zoom_stress = code.calc_market_momentum(market_code,zoom_date_from,zoom_date_to, series_lengths=[series_length], step_days=1, offset=0)
+base.plot_time_series(filename_market_zoom_stress, legends=[''], events=market_events)
 \end{pycode}
-For the Swiss stock exchange SWX the daily changes in quotes of \py{isin_count} securities over the time interval \py{date_from} - \py{date_to} have been analyzed.\\
-During this time interval the market experienced several external economic and/or political events which imprinted themselves in the historical quotes of the traded securities. Most notable among these has certainly been the decisions of the Swiss national bank to couple and later decouple the Swiss frank to the Euro.\\
-While the principal component analysis (figure \ref{figSWXanalysisLong}, top) indicates dates where the correlation among $\py{series_length}$ trading days long time series can be attributed to only the first principal component $PC1$, these times couldn't be associated with external trigger events.\\
-On the other hand, for the market stress analysis (figure \ref{figSWXanalysisLong}, bottom) for almost all dates with increased market stress, a possible external trigger event could be found (see table \ref{tabSWXevents}).\\
+For the SIX Swiss exchange (\py{market_code}) the daily changes in quotes of \py{isin_count} securities with CH... ISIN codes over the time interval \py{date_from} - \py{date_to} have been analyzed.\\
+During this time interval the market experienced several external economic and/or political events with potential effects on the traded security's quotes. Most notable among these has certainly been the decisions of the Swiss national bank to cap the CHF-EUR exchange rate and subsequent removal of the cap.\\
 
-\begin{figure}[!htb]
+The market stress $f_\mathbb{T}$ for \py{market_code} with time interval length $T=\py{series_length}$ is shown in figure \ref{figSWXstress} (top). Over a background noise of $0.25 < f_\mathbb{T} < 0.30$, distinctive peaks in market stress exist. See table \ref{tab_marketevents} for a detailed list of events with market stress above $0.35$.\\
+
+Zooming into the period \py{zoom_date_from} - \py{zoom_date_to}, which includes the Brexit referendum in the UK, sheds some light on the dynamics linking this event to the market stress (figure \ref{figSWXstress}, bottom). The market stress increases sharply in the days following the publication of the referendum's results, followed by two even more pronounced peaks. The width of the elevated stress levels above 0.30 corresponds to the resolution of $T=\py{series_length}$ of this analysis.
+\\
+\begin{figure}
 \centering
 \begin{subfigure}[b]{\textwidth}
 	% trim={<left> <lower> <right> <upper>}
-	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_pca))}
+	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_market_full_stress))}
 \end{subfigure}
 \begin{subfigure}[b]{\textwidth}
-	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_momentum))}
+	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_market_zoom_stress))}
 \end{subfigure}
-\caption{Comparison of principal component (top) and market stress analysis (bottom) during \py{date_from} - \py{date_to}. For both plots, time series over $T=\py{series_length}$ trading days were used. Notable events from table \ref{tabSWXevents} are indicated.}
-\label{figSWXanalysisLong}
+\caption{Market stress for \py{market_code} over the interval length $T=\py{series_length}$. The horizontal axis indicates the last day of the time period resulting in the market stress $f_\mathbb{T}$. Notable events from table \ref{tab_marketevents} are indicated as dotted vertical lines.\\
+Top: Market stress over the whole analyzed time period. Bottom: Enlarged section containing the Brexit referendum.
+}
+\label{figSWXstress}
 \end{figure}
 
-\begin{table}[!htb]
-\centering
-\begin{tabular}{c|r|l}
-\pyc{base.latex_table('SWX_events')}
-\end{tabular}
-\caption{Notable events affecting the Swiss stock exchange SWX.}
-\label{tabSWXevents}
-\end{table}
-
-Zooming into the period \py{date_from} - \py{date_to}, which includes the Brexit referendum in the UK, sheds some light on the dynamics linking this event to the market stress (figure \ref{figSWXanalysisShort}). The results from the principal component analysis still show now signs of reaction to this external shock, but the market stress increases sharply in the days following the publication of the referendum's results.
-\begin{pycode}
-market_code = 'SWX'
-date_from = '01.01.2016'
-date_to = '31.12.2016'
-series_length = 20
-
-filename_pca ='market_pca_SWX_20160101-20161231_20'
-#filename_pca = code.calc_PCA_market_dynamics(market_code,date_from,date_to, series_length=series_length, step_days=1, offset=0, num_components=3)
-base.plot_time_series(filename_pca, legends=None, events=None)
-
-filename_momentum = 'market_momentum_SWX_20160101-20161231'
-#filename_momentum = code.calc_market_momentum(market_code,date_from,date_to, series_lengths=[series_length], step_days=1, offset=0)
-base.plot_time_series(filename_momentum, legends=[''], events=events_SWX)
-\end{pycode}
-\begin{figure}[!htb]
-\centering
-\begin{subfigure}[b]{\textwidth}
-	% trim={<left> <lower> <right> <upper>}
-	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_pca))}
-\end{subfigure}
-\begin{subfigure}[b]{\textwidth}
-	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_momentum))}
-\end{subfigure}
-\caption{Comparison of principal component (top) and market stress analysis (bottom, $T=\py{series_length}$) during \py{date_from} - \py{date_to}. Enlarged interval  of figure \ref{figSWXanalysisLong}.}
-\label{figSWXanalysisShort}
-\end{figure}
+While figure \ref{figSWXstress} indicates dates with high average correlation between security quote series, figure \ref{figSWXstressmap} gives an indication how many of the traded securities can follow similar trends. Although on trading days with increased market stress more  quotes behave similarly, the events affect by no means all securities equally strong. By using the K-means algorithm to group all securities into 4 clusters with similar stress vectors, the most affected securities for each event 
+  
 \begin{pycode}
 market_code = 'SWX'
 date_from =  '01.01.2013'
 date_to = '31.12.2018'
 series_length = 20
-#filename = code.find_base_securities(market_code, 'SWX_events', date_from, date_to, series_length)
+#filename = code.find_base_securities(market_code, market_events, date_from, date_to, series_length)
 filename = 'market_base_SWX_20130101-20181231-20'
+security_list = base.load_list(filename)
 \end{pycode}
-\begin{table}[!htb]
+\begin{table}
 \centering
-\begin{tabular}{c|l}
-\pyc{base.latex_table(filename)}
+\begin{tabular}{l|l}
+\pyc{base.latex_table(security_list)}
 \end{tabular}
-\caption{Securities traded at \py{market_code} under highest stress during all trigger events between \py{date_from} - \py{date_to} (see table \ref{tabSWXevents}).}
+\caption{Principal securities for \py{market_code}. The listed securities exhibited the general market price movements in all stress events (see table \ref{tab_marketevents}) during the time period \py{date_from} - \py{date_to}.}
 \label{tabSWXstressedSecurities}
 \end{table}
 \begin{pycode}
 market_code = 'SWX'
 date_low = '18.03.2017'
-date_high = '15.01.2015'
+date_high = '17.01.2015'
 series_length = 20
 cluster_num = 1
 #filename_low = code.calc_market_stress(market_code, date_low, series_length, cluster_num)
 filename_low = 'market_stress_SWX_20170318-20'
 base.plot_matrix(filename_low, (-1,1))
 #filename_high = code.calc_market_stress(market_code, date_high, series_length, cluster_num)
-filename_high = 'market_stress_SWX_20150115-20'
+filename_high = 'market_stress_SWX_20150117-20'
 base.plot_matrix(filename_high, (-1,1))
 \end{pycode}
-\begin{figure}[!htb]
+\begin{figure}
 \centering
 \begin{subfigure}[b]{0.48\textwidth}
 	% trim={<left> <lower> <right> <upper>}
@@ -212,14 +195,188 @@ base.plot_matrix(filename_high, (-1,1))
 \begin{subfigure}[b]{0.48\textwidth}
 	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(filename_high))}
 \end{subfigure}
-\caption{Market stress $C_\mathbb{S}$ heat map of $\py{market_code}$ without (left, $\py{date_low}$) and with (right, $\py{date_high}$) external stress induction. On $\py{date_high}$ the Swiss national bank announced the decoupling of the Swiss franc from the Euro.}
-\label{figSWXstress}
+\caption{Heat map of market stress $M_\mathbb{S}$ between pairs of traded securities at \py{market_code}. Securities are ordered by decreasing stress $(f_\mathbb{T})_s$.\\
+Left: $\py{date_low}$ as an example of a market under minimal stress. Right: $\py{date_high}$, after the announcement of the Swiss national bank to decouple the Swiss franc from the Euro caused considerable market stress.}
+\label{figSWXstressmap}
 \end{figure}
+\FloatBarrier
 \subsection{German stock exchange XETR}
+\begin{pycode}
+market_code = 'XETR'
+date_from = '01.01.2003'
+date_to = '31.12.2018'
+series_length = 20
+
+isin_count = base.market_info(market_code, date_from, date_to)
+
+filename_market_full_stress = 'market_momentum_XTR_20030101-20181231'
+#filename_market_full_stress = code.calc_market_momentum(market_code,date_from,date_to, series_lengths=[series_length], step_days=7, offset=0)
+base.plot_time_series(filename_market_full_stress, legends=[''], events=market_events)
+\end{pycode}
+For the German stock exchange Xetra (\py{market_code}) the daily changes in quotes of \py{isin_count} securities with DE... ISIN codes over the time interval \py{date_from} - \py{date_to} have been analyzed.\\
+With the disjoint sets of traded securities for SWX and XETR, the analysis of the German market is intended to suggest common features between the two geographically close markets and identify potential properties specific two one of the two markets.\\
+
+The market stress $f_\mathbb{T}$ for \py{market_code} with time interval length $T=\py{series_length}$ is shown in figure \ref{figXETRstress} (top). The range of market stresses and background noise between $0.25 < f_\mathbb{T} < 0.30$ is comparable to SWX. While several stress peaks between the two markets coincide, there are some differences (see table \ref{tab_marketevents}).\\
+
+\begin{figure}
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_market_full_stress))}
+\caption{Market stress for \py{market_code} over the interval length $T=\py{series_length}$. The horizontal axis indicates the last day of the time period resulting in the market stress $f_\mathbb{T}$. Notable events from table \ref{tab_marketevents} are indicated as dotted vertical lines.}
+\label{figXETRstress}
+\end{figure}
+\begin{pycode}
+market_code = 'XETR'
+date_from =  '01.01.2013'
+date_to = '31.12.2018'
+series_length = 20
+#filename = code.find_base_securities(market_code, market_events, date_from, date_to, series_length)
+filename = 'market_base_XETR_20130101-20181231-20'
+security_list = base.load_list(filename)
+\end{pycode}
+\begin{table}
+\centering
+\begin{tabular}{l|l}
+\pyc{base.latex_table(security_list)}
+\end{tabular}
+\caption{Principal securities for \py{market_code}. The listed securities exhibited the general market price movements in all stress events (see table \ref{tab_marketevents}) during the time period \py{date_from} - \py{date_to}.}
+\label{tabXETRstressedSecurities}
+\end{table}
+\begin{pycode}
+market_code = 'XETR'
+date_low = '27.09.2017'
+date_high = '15.09.2015'
+series_length = 20
+cluster_num = 1
+#filename_low = code.calc_market_stress(market_code, date_low, series_length, cluster_num)
+filename_low = 'market_stress_XETR_20170927-20'
+base.plot_matrix(filename_low, (-1,1))
+#filename_high = code.calc_market_stress(market_code, date_high, series_length, cluster_num)
+filename_high = 'market_stress_XETR_20150915-20'
+base.plot_matrix(filename_high, (-1,1))
+\end{pycode}
+\begin{figure}
+\centering
+\begin{subfigure}[b]{0.48\textwidth}
+	% trim={<left> <lower> <right> <upper>}
+	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(filename_low))}
+\end{subfigure}
+~
+\begin{subfigure}[b]{0.48\textwidth}
+	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(filename_high))}
+\end{subfigure}
+\caption{Heat map of market stress $M_\mathbb{S}$ between pairs of traded securities at \py{market_code}. Securities are ordered by decreasing stress $(f_\mathbb{T})_s$.\\
+Left: $\py{date_low}$ as an example of a market under minimal stress. Right: $\py{date_high}$.}
+\label{figSWXstressmap}
+\end{figure}
+\FloatBarrier
+\newpage
 \subsection{Crypto currencies}
-www.cryptocurrencychart.com
-\cite{greenwade93}
+\begin{pycode}
+market_code = 'CRYP'
+date_from = '01.01.2015'
+date_to = '31.12.2018'
+series_length = 20
+
+isin_count = base.market_info(market_code, date_from, date_to)
+
+filename_market_full_stress = 'market_stress_CRYP_20150101-20181231'
+#filename_market_full_stress = code.calc_market_momentum(market_code,date_from,date_to, series_lengths=[series_length], step_days=7, offset=0)
+base.plot_time_series(filename_market_full_stress, legends=[''], events=market_events)
+\end{pycode}
+For the crypto currency data, daily quotes from \url{www.cryptocurrencychart.com} for \py{isin_count} currencies over the time interval \py{date_from} - \py{date_to} have been analyzed.\\
+Although all analyzed crypto currency data sets were obtained from \url{www.cryptocurrencychart.com}, the trading platforms which produced the quotes are unknown. The results of the crypto currency analysis therefore do not reflect the experienced stress of a single market, but rather of the global crypto trades.
+\begin{figure}
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_market_full_stress))}
+\caption{Market stress for crypto currencies over the interval length $T=\py{series_length}$. The horizontal axis indicates the last day of the time period resulting in the market stress $f_\mathbb{T}$. Notable events from table \ref{tab_marketevents} are indicated as dotted vertical lines.}
+\label{figXETRstress}
+\end{figure}
+
+\begin{pycode}
+market_code = 'CRYP'
+date_low = '29.10.2017'
+date_high = '20.02.2018'
+series_length = 20
+cluster_num = 1
+#filename_low = code.calc_market_stress(market_code, date_low, series_length, cluster_num)
+filename_low = 'market_stress_CRYP_20171029-20'
+base.plot_matrix(filename_low, (-1,1))
+#filename_high = code.calc_market_stress(market_code, date_high, series_length, cluster_num)
+filename_high = 'market_stress_CRYP_20180220-20'
+base.plot_matrix(filename_high, (-1,1))
+\end{pycode}
+\begin{figure}
+\centering
+\begin{subfigure}[b]{0.48\textwidth}
+	% trim={<left> <lower> <right> <upper>}
+	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(filename_low))}
+\end{subfigure}
+~
+\begin{subfigure}[b]{0.48\textwidth}
+	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(filename_high))}
+\end{subfigure}
+\caption{Heat map of market stress $M_\mathbb{S}$ between pairs of crypto currencies. Currencies are ordered by decreasing stress $(f_\mathbb{T})_s$.\\
+Left: $\py{date_low}$ as an example of a market under minimal stress. Right: $\py{date_high}$.}
+\label{figSWXstressmap}
+\end{figure}
+\FloatBarrier
 \section{Discussion}
+\begin{table}
+\begin{tabular}{c|c|c|c|l}
+\# & SWX & XETR & \multicolumn{2}{|c}{Event}\\
+\hline
+\multirow{2}{*}{1} & 13.06.2006 		& 15.06.2006     & \multirow{2}{*}{14.06.2006} & \multirow{2}{0.33\linewidth}{}\\
+							 & 05.06.-03.07.	& 30.05.-05.07. & &\\
+\hline
+\multirow{2}{*}{2} & 26.03.2007 		& 24.03.2007     & \multirow{2}{*}{25.03.2007} & \multirow{2}{0.33\linewidth}{}\\
+							 & 14.03.-26.03.	& 08.03.-26.03. & &\\
+\hline
+\multirow{2}{*}{3} & 27.08.2007 		&      & \multirow{2}{*}{27.08.2007} & \multirow{2}{0.33\linewidth}{}\\
+							 & 16.08.-12.09.	& & &\\
+\hline
+\multirow{2}{*}{4} & 16.02.2008 		& 16.02.2008     & \multirow{2}{*}{16.02.2008} & \multirow{2}{0.33\linewidth}{US mortgage crisis, AIG}\\
+							 & 24.01.-17.02.	& 04.02.-17.02. & &\\
+\hline
+\multirow{2}{*}{5} & 15.10.2008 		& 15.10.2008     & \multirow{2}{*}{15.10.2008} & \multirow{2}{0.33\linewidth}{Banking crisis, national bank interventions}\\
+							 & 08.10.-11.11.	& 08.10.-09.11. & &\\
+\hline
+\multirow{2}{*}{6} & 03.06.2010 		& 30.05.2010     & \multirow{2}{*}{01.06.2010} & \multirow{2}{0.33\linewidth}{European sovereign debt crisis: Greece/Spain}\\
+							 & 10.05.-14.06.	& 10.05.-15.06. & &\\
+\hline
+\multirow{2}{*}{7} & & 22.03.2011     & \multirow{2}{*}{22.03.2011} & \multirow{2}{0.33\linewidth}{}\\
+							 & & 15.03.-11.04. & &\\
+\hline
+\multirow{2}{*}{8} & 15.08.2011 		& 14.09.2011  & \multirow{2}{*}{01.09.2011} & \multirow{2}{0.33\linewidth}{06.09.2011:  CHF-EUR cap}\\
+							 & 02.08.-02.10.	& 08.08.-19.10. & &\\
+\hline
+\multirow{2}{*}{9} & 30.06.2013 		& & \multirow{2}{*}{30.06.2013} & \multirow{2}{0.33\linewidth}{}\\
+							 & 24.06.-30.06.	& & &\\
+\hline
+\multirow{2}{*}{10} & 17.01.2015 		& & \multirow{2}{*}{17.01.2015} & \multirow{2}{0.33\linewidth}{15.01.2015: End CHF-EUR cap}\\
+							 & 15.01.-12.02.	& & &\\
+\hline
+\multirow{2}{*}{11} & 27.08.2015 		& 15.09.2015     & \multirow{2}{*}{06.09.2015} & \multirow{2}{0.33\linewidth}{}\\
+							 & 24.08.-21.09.	& 21.08.-21.09. & &\\
+\hline
+\multirow{2}{*}{12} & 23.02.2016 		& 15.02.2016     & \multirow{2}{*}{19.02.2016} & \multirow{2}{0.33\linewidth}{}\\
+							 & 22.01.-07.03.	& 20.01.-06.03. & &\\
+\hline
+\multirow{2}{*}{13} & 13.07.2016 		& 14.07.2016     & \multirow{2}{*}{13.07.2016} & \multirow{2}{0.33\linewidth}{23.06.2016: Brexit referendum}\\
+							 & 28.06.-24.07.	& 13.07.-15.07. & &\\
+\hline
+\multirow{2}{*}{14} & 16.06.2017 		& & \multirow{2}{*}{16.06.2017} & \multirow{2}{0.33\linewidth}{}\\
+							 & 13.06.-16.06.	& & &\\
+\hline
+\multirow{2}{*}{15} & 28.02.2018 		& 02.03.2018     & \multirow{2}{*}{01.03.2018} & \multirow{2}{0.33\linewidth}{}\\
+							 & 21.02.-06.03.	& 21.02.-02.03. & &\\
+\hline
+\end{tabular}
+\caption{Periods of elevated (above 0.35) market stress and the day of maximal stress for SWX and XETR. Events indicate average day of maximal stress and possible trigger events and  for the two markets.}
+\label{tab_marketevents}
+\end{table}
+\FloatBarrier
 \section{Conclusion}
 
 \bibliography{references}{}
