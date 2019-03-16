@@ -1,5 +1,6 @@
 import python.base as base
 import numpy as np
+from scipy.optimize import curve_fit
 from datetime import datetime, timedelta
 import shutil
 import tensorflow as tf
@@ -192,31 +193,77 @@ def find_base_securities(marketcode, events, date_from, date_to, correlation_len
     np.savetxt('csv/'+filename+'.csv', data_csv, fmt='%s', delimiter=',')
     return filename
 
-def simulate_random_stress(trading_days_list, securities, dist_params, change_range):
-    simulation = base.simulated_quote_changes(dist_params, change_range)
-
-    data = [['trading days', 'average stress', 'std stress']]
-    for trading_days in trading_days_list:
-        momentum_series = []
-        for _ in range(1000):
-            data_change = [next(simulation) for _ in range(trading_days*securities)]
-            data_change = np.reshape(data_change, (trading_days,securities))
-            stress = calc_stress(data_change, offset=0)
-            momentum = calc_momentum(stress)
-            momentum_series.append(momentum)
-        data.append([trading_days, np.average(momentum_series), np.std(momentum_series)])
-
-    filename = "market_norm_stress_{}".format(["uniform","normal","","realistic"][len(dist_params)])
-    np.savetxt('csv/'+filename+'.csv', data, fmt='%s', delimiter=',')
-    print(data)
-
-def calc_change_distribution(marketcode, change_range, trading_days, end_date):
+def quote_change_statistics_real(marketcode, change_range, trading_days, end_date):
     data_change, date_list, _, _ = calc_data_change(marketcode, trading_days, 0, end_date)
     data_change = data_change.flatten()
     hist, bins = np.histogram(data_change,bins=100, range = change_range, density=True)
+
     date_start = date_list[0].strftime(base.DATE_FORMAT)
     date_end = date_list[-1].strftime(base.DATE_FORMAT)
-    filename = "market_probability_{}_{}-{}".format(marketcode, base.date_stamp(date_start), base.date_stamp(date_end))
     bins_avg = (bins[1:]+bins[:-1])/2
+
+    filename = "quote_change_statistics_real_{}_{}-{}".format(marketcode, base.date_stamp(date_start), base.date_stamp(date_end))
     np.savetxt('csv/'+filename+'.csv', np.vstack((bins_avg,hist)).T, fmt='%s', delimiter=',')
     return filename, (date_start, date_end), len(data_change)
+
+def baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, dist_params, change_range):
+    """
+    Calculates baseline stress from synthetic quote changes.
+    Determines base.distribution_correlation for synthetic correlation matrix.
+    """
+    def prob_dist_T1(x, a, b):
+        return np.power(x, a) * b
+
+    def prob_dist_T2(x, a, b):
+        return a * x + b
+
+    quote_change = base.quote_change_simulation_generator(dist_params, change_range)
+
+    data_record = ['trading days', 'average stress', 'std stress']
+    data_record = np.concatenate((data_record, ["fit param {}".format(i+1) for i in range(2)]))
+    data = np.array([data_record])
+    for trading_days in trading_days_list:
+        stress_elements = []
+        momentum_series = []
+        for _ in range(simulation_runs):
+            data_change = [next(quote_change) for _ in range(trading_days*securities)]
+            data_change = np.reshape(data_change, (trading_days,securities))
+            stress = calc_stress(data_change, offset=0)
+            for i in range(securities-1):
+                for j in range(i+1, securities):
+                    stress_elements.append(stress[i,j])
+#            stress_elements = np.concatenate((stress_elements, stress.flatten()))
+            momentum = calc_momentum(stress)
+            momentum_series.append(momentum)
+        data_record = [trading_days, np.average(momentum_series), np.std(momentum_series)]
+        hist, bins = np.histogram(stress_elements, bins=100, density=True)
+        bins_avg = (bins[1:]+bins[:-1])/2
+        popt, pcov = curve_fit(base.correlation_distribution, bins_avg, hist, p0=(1.9, 20.0))
+        data_record = np.concatenate((data_record, popt))
+        data = np.append(data, [data_record], axis=0)
+
+    x = data[1:,0].astype(np.float)
+    p1 = data[1:,3].astype(np.float)
+    p2 = data[1:,4].astype(np.float)
+
+    popt1, pcov1 = curve_fit(prob_dist_T1, x, p1, p0=(0.3, 0.5))
+    popt2, pcov2 = curve_fit(prob_dist_T2, x, p2, p0=(0.4, -1.5))
+
+    filename = "baseline_stress_quote_simulation_{}".format(["uniform","normal","","observed"][len(dist_params)])
+    np.savetxt('csv/'+filename+'.csv', data, fmt='%s', delimiter=',')
+    return filename, (popt1, np.sqrt(np.diag(pcov1))), (popt2, np.sqrt(np.diag(pcov2)))
+
+def baseline_stress_correlation_simulation(securities, simulations, T):
+    """ Calculates baseline stress from synthetic correlation matrix """
+    correlation_generator = base.correlation_simulation_generator((0.52587211, 0.34470357, 0.40524949 , -1.46300512), T)
+    momentum_series = []
+    for _ in range(simulations):
+        stress = np.zeros((securities, securities))
+        for i in range(securities - 1):
+            for j in range(i+1, securities):
+                corr_value = next(correlation_generator)
+                stress[i,j] = corr_value
+                stress[j,i] = corr_value
+        momentum = calc_momentum(stress)
+        momentum_series.append(momentum)
+    return np.average(momentum_series)

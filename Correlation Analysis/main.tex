@@ -1,5 +1,6 @@
 \documentclass[11pt,twoside,a4paper]{article}
 \usepackage{amssymb}
+\usepackage{amsmath}
 \usepackage{tensor}
 \usepackage{pythontex}
 \usepackage{graphicx}
@@ -7,6 +8,7 @@
 \usepackage{url}
 \usepackage{placeins} 
 \usepackage{multirow}
+\numberwithin{equation}{section}
 \begin{document}
 \pyc{import python.base as base, python.code as code}
 \title{Correlation analysis}
@@ -83,30 +85,36 @@ f^{(m)}_\mathbb{T} \equiv \langle f_s\rangle=\frac{1}{S}\sum_{s\in\mathbb{S}}f_s
 \end{equation}
 \begin{pycode}
 securities = 100
+simulation_runs = 1000
+trading_days_list = [5, 10, 20, 40, 80, 160, 320]
 change_range = (-0.5, 0.5)
 filename = 'market_norm_stress_uniform'
-#filename = code.simulate_random_stress(trading_days_list, securities, (), change_range)
-param_fit,  param_error= base.plot_normal_stress(filename)
+#filename = code.simulate_random_stress(trading_days_list, securities, simulation_runs, (), change_range)
+uniform_param_fit,  uniform_param_error= base.plot_baseline_stress(filename)
+filename = 'market_norm_stress_normal'
+#filename = code.simulate_random_stress(trading_days_list, securities, simulation_runs, ([20]), change_range)
+normal_param_fit,  normal_param_error= base.plot_baseline_stress(filename)
 \end{pycode}
-A market can be assigned an intrinsic average stress, by assuming completely random quote fluctuations $\Delta_\mathbb{T}$. This intrinsic stress can be used as a baseline to compare against the effective market stress.\\
-By simulating quote fluctuations $\Delta_\mathbb{T}$ with a uniform probability distribution between $\left[-\Delta,\Delta\right]$, the average market stress shows a dependency on the length of the time period $\mathbb{T}$. This relationship can be approximated by
-\begin{equation}
-f^0_\mathbb{T} \approx \alpha T^\beta\qquad\alpha=\py{"{:0.2f}".format(param_fit[0])}\pm\py{"{:0.2f}".format(param_error[0])}\quad\beta=\py{"{:0.2f}".format(param_fit[1])}\pm\py{"{:0.2f}".format(param_error[1])}\quad.
-\label{eqInstrinsicMarketStress}
-\end{equation}
+Assuming a market with completely random quote fluctuations $\Delta_\mathbb{T}$, its average market stress can be used as an intrinsic market stress to compare against the effective market stress. Average market stresses deviating significantly from this baseline indicate information on non random market effects.\\
+The averaged intrinsic market stress for simulated quote fluctuations $\Delta_\mathbb{T}$ over varying period lengths $T$ for $\py{simulation_runs}$ markets, each with $\py{securities}$. The stress values obtained by assuming for the random quote fluctuations an uniform probability distribution between $\left[-\Delta,\Delta\right]$ or a normal distribution with average $0$ and variance $20$ are indistinguishable.\\
+The dependency of the intrinsic market stress $f^0_\mathbb{T}$ from $T$ can be approximated by
+\begin{align}
+&f^0_\mathbb{T} \approx \alpha T^\beta\label{eqInstrinsicMarketStress}\\
+\textrm{uniform distribution:}&\quad\alpha=\py{"{:0.2f}".format(uniform_param_fit[0])}\pm\py{"{:0.2f}".format(uniform_param_error[0])}\quad\beta=\py{"{:0.2f}".format(uniform_param_fit[1])}\pm\py{"{:0.2f}".format(uniform_param_error[1])}\nonumber\\
+\textrm{normal distribution:}&\quad\alpha=\py{"{:0.2f}".format(normal_param_fit[0])}\pm\py{"{:0.2f}".format(normal_param_error[0])}\quad\beta=\py{"{:0.2f}".format(normal_param_fit[1])}\pm\py{"{:0.2f}".format(normal_param_error[1])}\nonumber.
+\end{align}
 \begin{figure}
 \centering
 	% trim={<left> <lower> <right> <upper>}
 \pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 15 50 50}},clip]{{{{"img/{}"}}}}'.format(filename))}
-\caption{Dependency of the intrinsic market stress $f^0_\mathbb{T}$ on $T$ on a logarithmic scale. Circles show simulated average market stresses for a market with \py{securities} securities and a uniform distribution between the interval $\left[\py{change_range[0]}, \py{change_range[1]}\right]$ for $\Delta_\mathbb{T}$. The dotted line indicates the approximation  (\ref{eqInstrinsicMarketStress})}.
+\caption{Dependency of the intrinsic market stress $f^0_\mathbb{T}$ on $T$ on a logarithmic scale. Circles show simulated average market stresses for a market with \py{securities} securities and a uniform distribution between the interval $\left[\py{change_range[0]}, \py{change_range[1]}\right]$ for $\Delta_\mathbb{T}$. The dotted line indicates the approximation  (\ref{eqInstrinsicMarketStress}).}
 \label{figIntrinsicMarketStress}
 \end{figure}
 \FloatBarrier
 \subsection{Principal securities}
 At times with high market stress $f^{(m)}_\mathbb{T}$ price movements of many securities synchronize. This article defines principal securities as the set of securities whose price movements always synchronize at times of high market stress. In this sense, principal securities represent the general price dynamics of the whole market in times of high market stress.\\
 The search for such principal securities uses the stress matrix $M_\mathbb{S}$ at times of maximal $f^{(m)}_\mathbb{T}$ and employs the K-means algorithm to group all securities into 4 clusters with similar stress vectors. If, for a list of high stress days, the same securities always end up in the cluster with highest stress average, they are considered candidates for principal securities of the respective market.\\
-
-The existence of principal securities should not be taken for granted.
+The existence of principal securities should not be taken for granted for a market over a given time period.
 \FloatBarrier
 \pagebreak
 \section{Results}
@@ -133,7 +141,26 @@ base.plot_time_series(filename_market_zoom_stress, legends=[''], events=market_e
 \end{pycode}
 For the SIX Swiss exchange (\py{market_code}) the daily changes in quotes of \py{isin_count} securities with CH... ISIN codes over the time interval \py{date_from} - \py{date_to} have been analyzed.\\
 During this time interval the market experienced several external economic and/or political events with potential effects on the traded security's quotes. Most notable among these has certainly been the decisions of the Swiss national bank to cap the CHF-EUR exchange rate and subsequent removal of the cap.\\
-
+\begin{pycode}
+marketcode = 'SWX'
+filename, date_range, sample_size = code.calc_change_distribution(marketcode, (-0.05,0.05), 2000, '31.12.2018')
+fit_param = (80.0, 120.0, 3.3)
+base.plot_histogram(filename, fit_param, r'$\Delta^{(SWX)}$')
+\end{pycode}
+\begin{figure}
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename))}
+\caption{Probabilty distribution for \py{sample_size} quote changes on market \py{marketcode} during the period \py{date_range[0]} - \py{date_range[1]}.\\
+The dashed curve indicates the approximation (\ref{eqQuoteChangeDist}) with paramters (\ref{eqSWXDist}).}
+\label{figChangeDistSWX}
+\end{figure}
+\begin{equation}
+p(\Delta)\approx e^{\alpha\frac{1-e^{\beta\Delta}}{1+e^{\beta\Delta}}\Delta+\gamma}\label{eqQuoteChangeDist}
+\end{equation}
+\begin{equation}
+\alpha\approx\py{fit_param[0]}\quad\beta\approx\py{fit_param[1]}\quad\gamma\approx\py{fit_param[2]}\label{eqSWXDist}
+\end{equation}
 The market stress $f_\mathbb{T}$ for \py{market_code} with time interval length $T=\py{series_length}$ is shown in figure \ref{figSWXstress} (top). Over a background noise of $0.25 < f_\mathbb{T} < 0.30$, distinctive peaks in market stress exist. See table \ref{tab_marketevents} for a detailed list of events with market stress above $0.35$.\\
 
 Zooming into the period \py{zoom_date_from} - \py{zoom_date_to}, which includes the Brexit referendum in the UK, sheds some light on the dynamics linking this event to the market stress (figure \ref{figSWXstress}, bottom). The market stress increases sharply in the days following the publication of the referendum's results, followed by two even more pronounced peaks. The width of the elevated stress levels above 0.30 corresponds to the resolution of $T=\py{series_length}$ of this analysis.

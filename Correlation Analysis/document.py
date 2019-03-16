@@ -45,6 +45,8 @@ filename_pca ='market_pca_SWX_20160101-20161231_20'
 
 #filename, date_range, sample_size = code.calc_change_distribution('SWX', (-0.05,0.05), 2000, '31.12.2018')
 #base.plot_histogram(filename, (80.0, 120.0, 3.3), r'$\Delta^{(SWX)}$')
+
+
 #filename, date_range, sample_size = code.calc_change_distribution('XETR', (-0.05,0.05), 2000, '31.12.2018')
 #base.plot_histogram(filename, (65.0, 150.0, 3.3), r'$\Delta^{(XETR)}$')
 
@@ -55,19 +57,25 @@ filename_pca ='market_pca_SWX_20160101-20161231_20'
 #filename, date_range, sample_size = code.calc_change_distribution('CRYP', (-0.1,0.1), 3000, '31.12.2018')
 #base.plot_histogram(filename, (35.9, 204.0, 2.8), r'$\Delta^{(CRYP)}_{BTC}$')
 
-#for i in base.simulated_quote_changes(5, (80.0, 120.0, 3.3), (-0.1,0.1)):
-#    print(i)
-#simulation = base.simulated_quote_changes((80.0, 120.0, 3.3), (-0.1,0.1))
-#data = [next(simulation) for _ in range(3)]
-#print(data)
-
 trading_days_list = [5, 10, 20, 40, 80, 160, 320]
-code.simulate_random_stress(trading_days_list, 100, (), (-0.5,0.5))
-code.simulate_random_stress(trading_days_list, 100, [20], (-0.5,0.5))
+securities = 100
+simulation_runs = 1000
+dist_params = ()
+change_range = (-0.5, 0.5)
+filename, param_fit1, param_fit2 = code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, dist_params, change_range)
+print(param_fit1)
+print(param_fit2)
 
-#code.simulate_random_stress(trading_days_list, 100, (80.0, 120.0, 3.3), (-0.05,0.05))
+filename = 'market_norm_stress_realistic'
+#base.plot_baseline_stress(filename)
 
-#base.plot_normal_stress('market_norm_stress_uniform')
+#correlation_sim = base.simulated_correlation_value((0.52587211, 0.34470357, 0.40524949 , -1.46300512), 20)
+#baseline_stress = code.baseline_stress_correlation_simulation(100, 10, 20)
+#print(baseline_stress)
 
-#base.test_distribution([20], (-0.5,0.5))
-#base.test_distribution((80.0, 120.0, 3.3), (-0.05,0.05))
+dist_params = (80.0, 120.0, 3.3)
+change_range = (-0.05, 0.05)
+#data_generator = base.quote_change_simulation_generator(dist_params, change_range)
+#data_generator = base.correlation_simulation_generator((0.52587211, 0.34470357, 0.40524949 , -1.46300512), 20)
+#base.test_distribution(data_generator)
+

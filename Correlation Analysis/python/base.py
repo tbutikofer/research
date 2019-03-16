@@ -267,10 +267,14 @@ def plot_matrix(filename, val_range):
 def load_list(filename):
     return np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
 
-def prob_dist(x, a, b, c):
+def quote_change_distribution(x, a, b, c):
     return np.exp(a*x*(1-np.exp(b*x))/(1+np.exp(b*x))+c)
 
+def correlation_distribution(x, a, b):
+    return a * np.power(np.abs(np.cos(x * np.pi / 2)), b)
+
 def plot_histogram(filename, func_param, xlabel):
+
     data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
     data = data_csv.astype(float)
     bin_avg = data[:,0]
@@ -279,23 +283,24 @@ def plot_histogram(filename, func_param, xlabel):
 
     plt.bar(bin_avg, hist, width=bin_size, align='center', fill=False, log=True)
 
-    popt, pcov = curve_fit(np.log(prob_dist), bin_avg, np.log(hist), p0=(22.0, 160.0, 2.4))
-    print(popt)
-
-    plt.plot(bin_avg, prob_dist(bin_avg, func_param[0], func_param[1], func_param[2]), 'k--', linewidth=2)
+    popt, pcov = curve_fit(quote_change_distribution, bin_avg, hist, p0=(22.0, 160.0, 2.4))
+#    print(popt)
+    plt.plot(bin_avg, quote_change_distribution(bin_avg, func_param[0], func_param[1], func_param[2]), 'k--', linewidth=2)
 #    plt.show()
     plt.xlabel(xlabel)
     plt.savefig('img/'+filename+".png", format='png')
     plt.clf()
 
-def simulated_quote_changes(dist_params, change_range):
+    return (popt, np.sqrt(np.diag(pcov)))
+
+def quote_change_simulation_generator(dist_params, change_range):
     dist_type = len(dist_params)
     if dist_type == 3:
         a, b, c = dist_params
         max_norm = -1.0
         for _ in range(10000):
             x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
-            p = prob_dist(x, dist_params[0], dist_params[1], dist_params[2])
+            p = quote_change_distribution(x, dist_params[0], dist_params[1], dist_params[2])
             max_norm = max_norm if p<max_norm else p
 #    print(max_norm)
 
@@ -308,12 +313,32 @@ def simulated_quote_changes(dist_params, change_range):
             while True:
                 x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
                 acceptance_prop = np.random.rand()
-                p = prob_dist(x, dist_params[0], dist_params[1], dist_params[2])
+                p = quote_change_distribution(x, dist_params[0], dist_params[1], dist_params[2])
                 if p/max_norm > acceptance_prop:
                     break
         yield x
 
-def plot_normal_stress(filename):
+def correlation_simulation_generator(dist_params, T):
+    prop_param = (
+                    np.power(T, dist_params[0])*dist_params[1],
+                    dist_params[2]*T + dist_params[3]
+                )
+    max_norm = -1.0
+    for _ in range(10000):
+        x = 2 * np.random.rand() - 1.0
+        p = correlation_distribution(x, prop_param[0], prop_param[1])
+        max_norm = max_norm if p<max_norm else p
+
+    while True:
+        while True:
+            x = 2 * np.random.rand() - 1.0
+            acceptance_prop = np.random.rand()
+            p = correlation_distribution(x, prop_param[0], prop_param[1])
+            if p/max_norm > acceptance_prop:
+                break
+        yield x
+
+def plot_baseline_stress(filename):
     data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
     data = data_csv[1:,:].astype(np.float)
 
@@ -354,11 +379,10 @@ def plot_normal_stress(filename):
     plt.savefig('img/'+filename+".png", format='png')
     plt.clf()
 
-    return popt, np.sqrt(np.diag(pcov))
+    return (popt, np.sqrt(np.diag(pcov)))
 
-def test_distribution(dist_params, change_range):
-    simulation = simulated_quote_changes(dist_params, change_range)
-    x = [next(simulation) for _ in range(100000)]
+def test_distribution(data_generator):
+    x = [next(data_generator) for _ in range(100000)]
     fig, ax = plt.subplots()
 
     # the histogram of the data
