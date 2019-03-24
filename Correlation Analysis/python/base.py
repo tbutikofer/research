@@ -27,37 +27,8 @@ def get_db_connection():
 
     return connection
 
-def get_securities(marketcode):
-    db_connection = get_db_connection()
-    query = "select ts.isin, i.name from t_market m \
-             join t_traded_security ts on m.marketid=ts.marketid \
-             join t_security s on s.isin=ts.isin \
-             join t_issuer i on s.issuerid=i.issuerid \
-             where m.marketcode=%(marketcode)s"
-    df = pd.read_sql(query,
-                        con=db_connection,
-                        params={'marketcode':marketcode})
-    return np.array(df.values)
-
-def read_raw_data(db_connection, marketcode, days, isin_list = None, today=date.today()):
-    query = "select i.name,ts.isin,q.date,q.quote from t_market m \
-	        join t_traded_security ts on m.marketid=ts.marketid \
-            join t_quote q on ts.tradedsecurityid=q.tradedsecurityid \
-            join t_security s on ts.isin=s.isin \
-            join t_issuer i on s.issuerid=i.issuerid \
-            where m.marketcode=%(marketcode)s \
-            and q.date between (%(today)s - interval %(days)s day) and %(today)s"
-    #            and q.date between (%(today)s - interval %(interval)d day) and %(today)s
-    if isin_list is not None:
-        query = query + " and ts.isin in (" + ','.join('\'{0}\''.format(isin) for isin in isin_list) + ")"
-
-    df = pd.read_sql(query,
-                        con=db_connection,
-                        params={'marketcode':marketcode, 'today':today, 'days':days})
-#    df['date'] = df['date'].astype('datetime64[ns]')
-    return df
-
-def market_info(marketcode, date_from, date_to):
+"""
+def market_info(marketcode, date_range):
     db_connection = get_db_connection()
     query = "select count(distinct ts.isin) from t_market m \
             join t_traded_security ts on (m.marketid=ts.marketid) \
@@ -67,101 +38,12 @@ def market_info(marketcode, date_from, date_to):
     
     df = pd.read_sql(query,
                         con=db_connection,
-                        params={'marketcode':marketcode, 'date_from':date_from, 'date_to':date_to})
+                        params={
+                            'marketcode':marketcode,
+                            'date_from':datetime.strptime(date_range[0], DATE_FORMAT),
+                            'date_to':datetime.strptime(date_range[1], DATE_FORMAT)
+                            })
     return df.values[0,0]
-
-
-def cleanup_data(df):
-    df = df.pivot(index='date', columns='isin', values='quote')
-#    df.to_csv('quotes.csv')
-    if len(df) > 0:
-
-        # Remove isins without continuous time series
-        first_day_quotes = df.iloc[0]
-        last_day_quotes = df.iloc[-1]
-    #    print(b.loc[:, b.isna().any()])
-        no_first_day_quote = first_day_quotes[first_day_quotes.isna()].index.values
-        no_last_day_quote = last_day_quotes[last_day_quotes.isna()].index.values
-        incomplete_series = list(set().union(no_first_day_quote, no_last_day_quote))
-        df = df.drop(incomplete_series, axis=1)
-
-        # Fill missing quotes with previous day quote
-        df = df.fillna(method='pad')
-    return df
-
-def read_buffer_data(db_connection, marketcode, isin_list = None):
-    query = "select i.name,ts.isin,q.date,q.quote from t_market m \
-	        join t_traded_security ts on m.marketid=ts.marketid \
-            join t_quote q on ts.tradedsecurityid=q.tradedsecurityid \
-            join t_security s on ts.isin=s.isin \
-            join t_issuer i on s.issuerid=i.issuerid \
-            where m.marketcode=%(marketcode)s "
-    if isin_list is not None:
-        query = query + " and ts.isin in (" + ','.join('\'{0}\''.format(isin) for isin in isin_list) + ")"
-    df = pd.read_sql(query,
-                        con=db_connection,
-                        params={'marketcode':marketcode})
-    
-    df_isin_name = df[['isin','name']].drop_duplicates()
-    isin_name = {}
-    for isin, name in zip(df_isin_name['isin'].values, df_isin_name['name'].values):
-        isin_name[isin] = name
-
-    df = cleanup_data(df)
-    return df, isin_name
-
-def calc_correlation(df, offset=0):
-    a = np.log(1 + df.pct_change()[1:])
-    correlation = a.corr()
-    return correlation
-
-def get_clean_data(marketcode, days, isin_list = None, today_str=date.today().strftime(DATE_FORMAT)):
-    today = datetime.strptime(today_str, DATE_FORMAT)
-
-    # df = buffer_data[(today-timedelta(days=days)).date():today.date()]
-    db_connection = get_db_connection()
-    df = read_raw_data(db_connection, marketcode, days, isin_list, today)
-    df = df[df['quote'] > 0]
-    df_isin_name = df[['isin','name']].drop_duplicates()
-    isin_name = {}
-    for isin, name in zip(df_isin_name['isin'].values, df_isin_name['name'].values):
-        isin_name[isin] = name
-
-    df = cleanup_data(df)
-
-    date_list = np.array([date for date in df.index])
-    isin_list = np.array([isin for isin in df.columns])
-    issuer_list = np.array([isin_name[isin] for isin in df.columns])
-    return df.values, date_list, isin_list, issuer_list
-
-def create_date_series(fromdate_str, todate_str, interval_days):
-    date_series = []
-    fromdate = datetime.strptime(fromdate_str, DATE_FORMAT)
-    todate = datetime.strptime(todate_str, DATE_FORMAT)
-    interval = timedelta(days=interval_days)
-    date = fromdate
-    while date <= todate:
-        date_series.append(date)
-        date += interval
-    return date_series
-
-def save_object(obj, filename ):
-    with open('obj/'+ filename + '.pkl', 'wb') as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-
-def load_object(filename):
-    with open('obj/' + filename + '.pkl', 'rb') as f:
-        return pickle.load(f)
-
-# def latex_table(column_names, alignment, values):
-#     print(r"\begin{{tabular}}{{{}}}".format(" | ".join(alignment)))
-#     row_template = " & ".join(["{}" for _ in column_names]) + "\\"
-#     column_names = [list(column.keys())[0] for column in column_names]
-#     print(row_template.format(*column_names) + "\\")
-#     print(r"\hline")
-#     for value in values:
-#         print(r"{} & {} & {}\\".format(value['label'], value['date'], value['text']))
-#     print(r"\end{tabular}")
 
 def latex_table(data_array):
     row_template = " & ".join(["{}" for _ in data_array[0]])
@@ -174,78 +56,46 @@ def latex_table(data_array):
         table_rows.append(row_template.format(*table_row_esc))
     table_string = "\\\\\n".join([row for row in table_rows])
     print(table_string)
+"""
 
-def latex_table_old(table_array):
-    row_template = " & ".join(["{}" for _ in table_array[0]])
-    column_names = table_array[0]
-    print(row_template.format(*column_names)+"\\\\")
-    print(r"\hline")
-    table_rows = []
-    for table_row in table_array[1:]:
-        table_row_esc = [value.replace('&', '\\&') for value in table_row]
-        table_rows.append(row_template.format(*table_row_esc))
-    table_string = "\\\\\n".join([row for row in table_rows])
-    print(table_string)
-
-def dataset_to_csv(dataset_name):
-    timeseries = load_object(dataset_name)
-    data = []
-    header = [list(timeseries[0].keys())[0]]
-    for column in list(timeseries[1].keys()):
-        header.append(column)
-    data.append(header)
-    for i, date in enumerate(timeseries[0][header[0]]):
-        row = [date.strftime(DATE_FORMAT)]
-        for column in header[1:]:
-            row.append(timeseries[1][column][i])
-        data.append(row)
-    np.savetxt(dataset_name+".csv", data, fmt='%s', delimiter=",")
-
-def date_stamp(date_str):
-    return datetime.strptime(date_str, DATE_FORMAT).strftime("%Y%m%d")
- 
-#buffer_data, isin_name = read_buffer_data(get_db_connection(), 'SWX')
-ii=42
-
-def plot_time_series(filename, legends, events):
-    data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
-    date_series = [datetime.strptime(date_str, DATE_FORMAT) for date_str in data_csv[1:,0]]
-    if legends is None:
-        legends = data_csv[0,1:]
-    data = data_csv[1:,1:].astype(np.float)
-    color_list = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'white']
+def plot_time_series(filename, filename_dict, event_filename=None):
     style_list = ['-', '--', ':', '-.']
     fig, ax = plt.subplots(figsize=(11,6))
     ax.xaxis_date()
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m.%Y'))
-    ax.set_xlim(date_series[0], date_series[-1])
-    fig.autofmt_xdate()
 
-    for i, legend_txt in enumerate(legends):
+    i = 0
+    date_range = [None, None]
+    for label, filename in filename_dict.items():
+        data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
+        date_series = [datetime.strptime(date_str, DATE_FORMAT) for date_str in data_csv[1:,0]]
+        data = data_csv[1:,1].astype(np.float)
+        date_range[0] = np.min((date_range[0], date_series[0])) if date_range[0] else date_series[0]
+        date_range[1] = np.max((date_range[1], date_series[-1])) if date_range[1] else date_series[-1]
         ax.plot(
             date_series,
-            data[:,i],
-            color=color_list[i % len(color_list)],
-        #    color='black',
+            data,
+            color='black',
             linestyle = style_list[i % len(style_list)],
-            label=legend_txt
-            )
-
-    ylim = ax.get_ylim()
-    if events is not None:
-        for event in events[1:]:
+            label=label
+        )
+        i = i + 1
+    if event_filename:
+        data_csv = np.loadtxt('csv/'+event_filename+'.csv', dtype=np.unicode, delimiter=',')
+        date_idx = data_csv[1:,0].astype(np.int)
+        date_series = [datetime.strptime(date_str, DATE_FORMAT) for date_str in data_csv[1:,1]]
+        ylim = ax.get_ylim()
+        for event in data_csv[1:,:]:
             date = datetime.strptime(event[1], DATE_FORMAT)
             plt.axvline(x=date, linestyle=':', color='black')
             plt.text(date,ylim[1]-(ylim[1]-ylim[0])/50.0,event[0],va='top')
 
-    if not np.all([not a for a in legends]):
-        legend = ax.legend()
-
-    if filename is None:
-        plt.show()
-    else:
-        plt.savefig('img/'+filename+".png", format='png')
-    # legend = ax.legend().remove()
+    ax.set_xlim(date_range[0], date_range[1])
+    fig.autofmt_xdate()
+    legend = ax.legend()
+#    plt.show()
+    fig.savefig('img/'+filename+".png", format='png')
+    ax.legend().remove()
     plt.clf()
 
 def plot_matrix(filename, val_range):
@@ -267,12 +117,6 @@ def plot_matrix(filename, val_range):
 def load_list(filename):
     return np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
 
-def quote_change_distribution(x, a, b, c):
-    return np.exp(a*x*(1-np.exp(b*x))/(1+np.exp(b*x))+c)
-
-def correlation_distribution(x, a, b):
-    return a * np.power(np.abs(np.cos(x * np.pi / 2)), b)
-
 def plot_histogram(filename, func_param, xlabel):
 
     data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
@@ -283,42 +127,117 @@ def plot_histogram(filename, func_param, xlabel):
 
     plt.bar(bin_avg, hist, width=bin_size, align='center', fill=False, log=True)
 
-    popt, pcov = curve_fit(quote_change_distribution, bin_avg, hist, p0=(22.0, 160.0, 2.4))
+    popt, pcov = curve_fit(quote_change_distribution, bin_avg, hist, p0=func_param)
 #    print(popt)
     plt.plot(bin_avg, quote_change_distribution(bin_avg, func_param[0], func_param[1], func_param[2]), 'k--', linewidth=2)
-#    plt.show()
     plt.xlabel(xlabel)
+#    plt.show()
     plt.savefig('img/'+filename+".png", format='png')
     plt.clf()
-
     return (popt, np.sqrt(np.diag(pcov)))
 
-def quote_change_simulation_generator(dist_params, change_range):
-    dist_type = len(dist_params)
-    if dist_type == 3:
-        a, b, c = dist_params
-        max_norm = -1.0
-        for _ in range(10000):
-            x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
-            p = quote_change_distribution(x, dist_params[0], dist_params[1], dist_params[2])
-            max_norm = max_norm if p<max_norm else p
-#    print(max_norm)
+def observed_changes(marketcode, date_range, always=True, T=1, isin_list=None):
+    def read_raw_data(db_connection, marketcode, date_range, isin_list):
+        """ Fetch quotes from database """
+        query = "select i.name,ts.isin,q.date,q.quote from t_market m \
+                join t_traded_security ts on m.marketid=ts.marketid \
+                join t_quote q on ts.tradedsecurityid=q.tradedsecurityid \
+                join t_security s on ts.isin=s.isin \
+                join t_issuer i on s.issuerid=i.issuerid \
+                where m.marketcode=%(marketcode)s \
+                and q.date between %(from_date)s and %(to_date)s"
+        if isin_list is not None:
+            query = query + " and ts.isin in (" + ','.join('\'{0}\''.format(isin) for isin in isin_list) + ")"
 
-    while True:
-        if dist_type == 0:
-            x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
-        elif dist_type == 1:
-            x = np.random.randn()/np.sqrt(dist_params[0])
-        elif dist_type == 3:
-            while True:
-                x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
-                acceptance_prop = np.random.rand()
-                p = quote_change_distribution(x, dist_params[0], dist_params[1], dist_params[2])
-                if p/max_norm > acceptance_prop:
-                    break
-        yield x
+        df = pd.read_sql(query,
+                            con=db_connection,
+                            params={
+                                'marketcode':marketcode,
+                                'from_date':datetime.strptime(date_range[0], DATE_FORMAT) - timedelta(3*T),
+                                'to_date':datetime.strptime(date_range[1], DATE_FORMAT)
+                                })
+    #    df['date'] = df['date'].astype('datetime64[ns]')
+        return df
 
-def correlation_simulation_generator(dist_params, T):
+    def observation_change_generator(data, data_date, T):
+        i = T
+        while True:
+            if i<=len(data):
+                yield data[i-T:i], data_date[i-1]
+                i = i + 1
+            else:
+                raise StopIteration()
+
+    db_connection = get_db_connection()
+    df = read_raw_data(db_connection, marketcode, date_range, isin_list)
+    df = df[df['quote'] > 0]
+    df_isin_name = df[['isin','name']].drop_duplicates()
+    isin_name_dict = {}
+    for isin, name in zip(df_isin_name['isin'].values, df_isin_name['name'].values):
+        isin_name_dict[isin] = name
+
+    df = df.pivot(index='date', columns='isin', values='quote')
+    if len(df) > 0:
+        if always:
+            # Remove isins without continuous time series
+            first_day_quotes = df.iloc[0]
+            last_day_quotes = df.iloc[-1]
+            no_first_day_quote = first_day_quotes[first_day_quotes.isna()].index.values
+            no_last_day_quote = last_day_quotes[last_day_quotes.isna()].index.values
+            incomplete_series = list(set().union(no_first_day_quote, no_last_day_quote))
+            df = df.drop(incomplete_series, axis=1)
+
+        # Fill missing quotes with previous day quote
+        df = df.fillna(method='pad')
+
+    isin_list = np.array([isin for isin in df.columns])
+    date_list = np.array([date for date in df.index])
+
+    # Calculate relative quote changes (log)
+    date_list = date_list[1:]
+    data = df.values
+    data_change = np.log(data[1:] / data[:-1])
+    # remove days without trading (data_change = 0 for all securities)
+    trading_days = ~np.all(data_change == 0, axis=1)
+    data_change = data_change[trading_days,:]
+    date_list = date_list[trading_days]
+
+    date_start = datetime.strptime(date_range[0], DATE_FORMAT).date()
+    date_start_idx = np.where(date_list<=date_start)[0][-1]
+    date_list = date_list[date_start_idx-T+1:]
+    data_change = data_change[date_start_idx-T+1:]
+
+    # remove securities which haven't been traded
+    securities_traded = ~np.all(data_change == 0, axis=0)
+    data_change = data_change[:,securities_traded]
+
+    isin_list = isin_list[securities_traded]
+    security_list = np.array([[isin, isin_name_dict[isin]] for isin in isin_list])
+
+    return observation_change_generator(data_change, date_list, T), security_list
+
+def quote_change_simulation_generator(change_generator, securities, T, date_range=None):
+    if date_range:
+        date = datetime.strptime(date_range[0], DATE_FORMAT)
+        date_end = datetime.strptime(date_range[1], DATE_FORMAT)
+    else:
+        date = None
+        date_end = None
+    
+    change_buffer = []
+    while (date_range is None) or (date<=date_end):
+        quote_changes = []
+        for _ in range(securities):
+            x = next(change_generator)
+            quote_changes.append(x)
+        change_buffer.append(quote_changes)
+        if len(change_buffer) >= T:
+            yield np.array(change_buffer), date
+            change_buffer.pop(0)
+        if date:
+            date = (np.datetime64(date) + np.timedelta64(1,'D')).astype(datetime)
+
+def correlation_simulation_generator(dist_params, securities, T):
     prop_param = (
                     np.power(T, dist_params[0])*dist_params[1],
                     dist_params[2]*T + dist_params[3]
@@ -330,13 +249,18 @@ def correlation_simulation_generator(dist_params, T):
         max_norm = max_norm if p<max_norm else p
 
     while True:
-        while True:
-            x = 2 * np.random.rand() - 1.0
-            acceptance_prop = np.random.rand()
-            p = correlation_distribution(x, prop_param[0], prop_param[1])
-            if p/max_norm > acceptance_prop:
-                break
-        yield x
+        corr = np.ones((securities, securities))
+        for i in range(securities - 1):
+            for j in range(i+1, securities):
+                while True:
+                    x = 2 * np.random.rand() - 1.0
+                    acceptance_prop = np.random.rand()
+                    p = correlation_distribution(x, prop_param[0], prop_param[1])
+                    if p/max_norm > acceptance_prop:
+                        break
+                corr[i,j] = x
+                corr[j,i] = x
+        yield corr
 
 def plot_baseline_stress(filename):
     data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
@@ -374,8 +298,9 @@ def plot_baseline_stress(filename):
     plt.minorticks_off()
     ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.floor(np.log10(y)),0))).format(y))))
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.floor(np.log10(y)),0))).format(y))))
-    plt.xlabel("$T$")
-    plt.ylabel("$f^0_T$")
+    fontsize = 18
+    plt.xlabel('$T$', fontsize=fontsize)
+    plt.ylabel('$f^0_T$', fontsize=fontsize)
     plt.savefig('img/'+filename+".png", format='png')
     plt.clf()
 
@@ -389,3 +314,34 @@ def test_distribution(data_generator):
     num_bins = 100
     n, bins, patches = ax.hist(x, num_bins, density=1)
     plt.show()
+
+def uniform_distribution(change_range):
+    while True:
+        x = np.random.uniform(change_range[0], change_range[1])
+        yield x
+
+def normal_distribution(sigma, change_range):
+    while True:
+        x = np.random.normal(scale=sigma)
+        if change_range[0] <= x <= change_range[1]:
+            yield x
+
+def correlation_distribution(x, a, b):
+    return a * np.power(np.abs(np.cos(x * np.pi / 2)), b)
+
+def quote_change_distribution(x, a, b, c):
+    return np.exp(a*x*(1-np.exp(b*x))/(1+np.exp(b*x))+c)
+
+def market_distribution(a, b, c, change_range):
+    max_norm = -1.0
+    for _ in range(10000):
+        x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
+        p = quote_change_distribution(x, a, b, c)
+        max_norm = max_norm if p<max_norm else p
+
+    while True:
+        x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
+        acceptance_prop = np.random.rand()
+        p = quote_change_distribution(x, a, b, c) / max_norm
+        if p > acceptance_prop:
+            yield x

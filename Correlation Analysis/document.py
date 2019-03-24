@@ -1,81 +1,126 @@
-import python.code as code, python.base as base 
+import python.code as code, python.base as base
 
-dataset_SWX_correlations = 'SWX_covariance_5_20_260-offset_0'
-events_SWX = [
-    ['0',  'Date', 'Event'],
-    ['1',  '16.06.2006', 'unkown'],
-    ['2',  '11.08.2007', 'EZB injects 150 bEUR due to US real estate and mortage crisis'],
-    ['3',  '21.01.2008', 'Stock crash due to US real estate and mortage crisis'],
-    ['4',  '13.10.2008', 'Speculations about EU bail-outs causes euphoria'],
-    ['5',  '08.05.2010', 'EU 750 bEUR bail-out fonds / Greece crisis'],
-    ['6',  '04.08.2011', 'EZB starts buying of government bonds'],
-    ['7',  '06.09.2011', 'start of EUR:CHF ceiling'],
-    ['8',  '15.01.2015', 'end of EUR:CHF ceiling'],
-    ['9',  '24.08.2015', 'Mini-crash "black monday"'],
-    ['10', '24.06.2016', 'Brexit referendum'],
-    ['11', '05.02.2018', 'Mini-crash NYSE']
-    ]
-
-
-market_code = 'CRYP'
-date_from = '01.01.2015'
-date_to = '31.12.2018'
-series_length = 20
-
-filename_pca ='market_pca_SWX_20160101-20161231_20'
-#filename_pca = code.calc_PCA_market_dynamics(market_code,date_from,date_to, series_length=series_length, step_days=1, offset=0, num_components=3)
-#base.plot_time_series(filename_pca, legends=None, events=None)
-
-#filename_momentum = 'market_momentum_SWX_20160101-20161231'
-#filename_momentum = code.calc_market_stress_series(market_code,date_from,date_to, series_lengths=[series_length], step_days=1, offset=0)
-#base.plot_time_series(filename_momentum, legends=None, events=events_SWX)
-
-#base.latex_table(events_SWX)
-
-#filename = code.calc_market_stress('SWX', '17.01.2015', 20,1)
-#filename = 'market_stress_SWX_20150117-20'
-#base.plot_matrix(filename, (-1,1))
-
-#market_events = base.load_list('market_stress_events')
-#filename = code.find_base_securities('XETR', market_events, '01.01.2003', '31.12.2018', 20)
-#filename = 'SWX_events'
-#base.latex_table(filename)
-
-#code.simulate_random_stress()
-
-#filename, date_range, sample_size = code.calc_change_distribution('SWX', (-0.05,0.05), 2000, '31.12.2018')
-#base.plot_histogram(filename, (80.0, 120.0, 3.3), r'$\Delta^{(SWX)}$')
-
-
-#filename, date_range, sample_size = code.calc_change_distribution('XETR', (-0.05,0.05), 2000, '31.12.2018')
-#base.plot_histogram(filename, (65.0, 150.0, 3.3), r'$\Delta^{(XETR)}$')
-
-#filename, date_range, sample_size = code.calc_change_distribution('CRYP', (-0.2,0.2), 500, '31.12.2018')
-#base.plot_histogram(filename, (22.0, 160.0, 2.4), r'$\Delta^{(CRYP)}$')
-#print(date_range, sample_size)
-
-#filename, date_range, sample_size = code.calc_change_distribution('CRYP', (-0.1,0.1), 3000, '31.12.2018')
-#base.plot_histogram(filename, (35.9, 204.0, 2.8), r'$\Delta^{(CRYP)}_{BTC}$')
-
-trading_days_list = [5, 10, 20, 40, 80, 160, 320]
+"""
 securities = 100
 simulation_runs = 1000
-dist_params = ()
+trading_days_list = [5, 10, 20, 40, 80, 160, 320]
 change_range = (-0.5, 0.5)
-filename, param_fit1, param_fit2 = code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, dist_params, change_range)
-print(param_fit1)
-print(param_fit2)
+filename_uniform = 'market_baseline_stress_uniform'
+change_generator = base.uniform_distribution(change_range)
+code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, filename_uniform)
+param_fit_uniform,  param_error_uniform = base.plot_baseline_stress(filename_uniform)
 
-filename = 'market_norm_stress_realistic'
-#base.plot_baseline_stress(filename)
-
-#correlation_sim = base.simulated_correlation_value((0.52587211, 0.34470357, 0.40524949 , -1.46300512), 20)
-#baseline_stress = code.baseline_stress_correlation_simulation(100, 10, 20)
-#print(baseline_stress)
-
-dist_params = (80.0, 120.0, 3.3)
 change_range = (-0.05, 0.05)
-#data_generator = base.quote_change_simulation_generator(dist_params, change_range)
-#data_generator = base.correlation_simulation_generator((0.52587211, 0.34470357, 0.40524949 , -1.46300512), 20)
-#base.test_distribution(data_generator)
+filename_normal = 'market_baseline_stress_normal'
+sigma = 0.05
+change_generator = base.normal_distribution(sigma, change_range)
+code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, filename_normal)
+param_fit_uniform,  param_error_uniform = base.plot_baseline_stress(filename_normal)
+"""
 
+"""
+marketcode = 'SWX'
+series_length = 20
+event_filename = 'market_stress_events'
+
+date_range = ('01.01.2000','31.12.2018')
+#isin_count = base.market_info(marketcode, date_range)
+market_stress_series = 'market_stress_series_SWX_20000101-20181231'
+change_generator, security_list = base.observed_changes(marketcode, date_range, always=False, T=series_length)
+code.stress_series(change_generator, offset=0, filename = market_stress_series)
+base.plot_time_series(market_stress_series, {'T=20':market_stress_series}, event_filename=event_filename)
+
+data_range_zoom = ('01.01.2016','31.12.2016')
+market_stress_series_zoom = 'market_stress_series_SWX_20160101-20161231'
+change_generator, _ = base.observed_changes(marketcode, data_range_zoom, always=False, T=series_length)
+code.stress_series(change_generator, offset=0, filename = market_stress_series_zoom)
+base.plot_time_series(market_stress_series_zoom, {'T=20':market_stress_series_zoom}, event_filename=event_filename)
+"""
+
+"""
+marketcode = 'SWX'
+date_range = ('01.01.2000','31.12.2018')
+change_range = (-0.05, 0.05)
+change_generator, _ = base.observed_changes(marketcode, date_range)
+filename = 'change_histogram_SWX_20000101-20181231'
+sample_size = code.calculate_histogram(change_generator, change_range, filename)
+fit_param = (66, 152, 3.21)
+base.plot_histogram(filename, fit_param, r'$\Delta^{(SWX)}$')
+"""
+
+"""
+market_code = 'SWX'
+event_filename = 'market_stress_events'
+date_range = ('01.01.2013','31.12.2018')
+series_length = 20
+filename = 'market_base_SWX_20130101-20181231-20'
+code.find_base_securities(market_code, event_filename, date_range, series_length, filename)
+security_list = base.load_list(filename)
+"""
+
+"""
+market_code = 'SWX'
+series_length = 20
+
+date_low = '18.03.2017'
+filename_low = 'market_stress_SWX_20170318-20'
+code.market_stress_matrix(market_code, date_low, series_length, filename_low)
+base.plot_matrix(filename_low, (-1,1))
+
+date_high = '17.01.2015'
+filename_high = 'market_stress_SWX_20150117-20'
+code.market_stress_matrix(market_code, date_high, series_length, filename_high)
+base.plot_matrix(filename_high, (-1,1))
+"""
+
+"""
+marketcode = 'XETR'
+series_length = 20
+event_filename = 'market_stress_events'
+
+date_range = ('01.01.2003','31.12.2018')
+#isin_count = base.market_info(marketcode, date_range)
+market_stress_series = 'market_stress_series_XETR_20030101-20181231'
+change_generator, security_list = base.observed_changes(marketcode, date_range, always=False, T=series_length)
+code.stress_series(change_generator, offset=0, filename = market_stress_series)
+base.plot_time_series(market_stress_series, {'T=20':market_stress_series}, event_filename=event_filename)
+"""
+
+"""
+market_code = 'XETR'
+event_filename = 'market_stress_events'
+date_range = ('01.01.2013','31.12.2018')
+series_length = 20
+filename = 'market_base_XETR_20130101-20181231-20'
+code.find_base_securities(market_code, event_filename, date_range, series_length, filename)
+security_list = base.load_list(filename)
+"""
+
+"""
+marketcode = 'XETR'
+date_range = ('01.02.2003','31.12.2018')
+change_range = (-0.05, 0.05)
+change_generator, _ = base.observed_changes(marketcode, date_range)
+filename = 'change_histogram_XETR_20030201-20181231'
+sample_size = code.calculate_histogram(change_generator, change_range, filename)
+fit_param = (56, 127, 3.11)
+base.plot_histogram(filename, fit_param, r'$\Delta^{(XETR)}$')
+"""
+
+"""
+marketcode = 'CRYP'
+date_range = ('01.01.2015','31.12.2018')
+change_range = (-0.2, 0.2)
+change_generator, _ = base.observed_changes(marketcode, date_range)
+filename = 'change_histogram_CRYP_20150101-20181231'
+sample_size = code.calculate_histogram(change_generator, change_range, filename)
+fit_param = (17.6, 81, 1.9)
+base.plot_histogram(filename, fit_param, r'$\Delta^{(CRYP)}$')
+"""
+
+"""
+change_range = (-0.05, 0.05)
+data_generator = base.market_distribution(80, 120, 3.3, change_range)
+data_generator = base.correlation_simulation_generator((0.52587211, 0.34470357, 0.40524949 , -1.46300512), 100, 20)
+base.test_distribution(data_generator)
+"""
