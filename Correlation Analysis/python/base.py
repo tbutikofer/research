@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, date
 import pickle
 
 DATE_FORMAT = '%d.%m.%Y'
+DATESTAMP_FORMAT = '%Y%m%d'
 
 def get_db_connection():
     db_server = 'localhost'
@@ -44,6 +45,7 @@ def market_info(marketcode, date_range):
                             'date_to':datetime.strptime(date_range[1], DATE_FORMAT)
                             })
     return df.values[0,0]
+"""
 
 def latex_table(data_array):
     row_template = " & ".join(["{}" for _ in data_array[0]])
@@ -56,9 +58,11 @@ def latex_table(data_array):
         table_rows.append(row_template.format(*table_row_esc))
     table_string = "\\\\\n".join([row for row in table_rows])
     print(table_string)
-"""
 
-def plot_time_series(filename, filename_dict, event_filename=None):
+def datestamp(date):
+    return datetime.strptime(date, DATE_FORMAT).strftime(DATESTAMP_FORMAT)
+
+def plot_time_series(filename_dict, event_filename=None):
     style_list = ['-', '--', ':', '-.']
     fig, ax = plt.subplots(figsize=(11,6))
     ax.xaxis_date()
@@ -82,7 +86,6 @@ def plot_time_series(filename, filename_dict, event_filename=None):
         i = i + 1
     if event_filename:
         data_csv = np.loadtxt('csv/'+event_filename+'.csv', dtype=np.unicode, delimiter=',')
-        date_idx = data_csv[1:,0].astype(np.int)
         date_series = [datetime.strptime(date_str, DATE_FORMAT) for date_str in data_csv[1:,1]]
         ylim = ax.get_ylim()
         for event in data_csv[1:,:]:
@@ -92,7 +95,7 @@ def plot_time_series(filename, filename_dict, event_filename=None):
 
     ax.set_xlim(date_range[0], date_range[1])
     fig.autofmt_xdate()
-    legend = ax.legend()
+    ax.legend()
 #    plt.show()
     fig.savefig('img/'+filename+".png", format='png')
     ax.legend().remove()
@@ -125,16 +128,36 @@ def plot_histogram(filename, func_param, xlabel):
     hist = data[:,1]
     bin_size = bin_avg[1]-bin_avg[0]
 
+    plt.figure(figsize=(8,6))
     plt.bar(bin_avg, hist, width=bin_size, align='center', fill=False, log=True)
 
     popt, pcov = curve_fit(quote_change_distribution, bin_avg, hist, p0=func_param)
 #    print(popt)
-    plt.plot(bin_avg, quote_change_distribution(bin_avg, func_param[0], func_param[1], func_param[2]), 'k--', linewidth=2)
+    plt.plot(bin_avg, quote_change_distribution(bin_avg, func_param[0], func_param[1], func_param[2], func_param[3]), 'k--', linewidth=2)
     plt.xlabel(xlabel)
 #    plt.show()
     plt.savefig('img/'+filename+".png", format='png')
     plt.clf()
     return (popt, np.sqrt(np.diag(pcov)))
+
+def plot_correlation_histogram(T, func_param, xlabel):
+    filename = 'correlation_histogram'
+    data_csv = np.loadtxt('csv/'+filename+'.csv', dtype=np.unicode, delimiter=',')
+    data = data_csv[1:].astype(float)
+    bin_avg = data[:,0]
+    hist = data[:,1]
+    bin_size = bin_avg[1]-bin_avg[0]
+
+    plt.figure(figsize=(8,6))
+    plt.bar(bin_avg, hist, width=bin_size, align='center', fill=False, log=True)
+#    print(popt)
+    plt.plot(bin_avg, correlation_distribution(bin_avg, np.power(T, func_param[0][0])*func_param[0][1], func_param[1][0]*T+func_param[1][1]), 'k--', linewidth=2)
+    plt.xlim(-1,1)
+    fontsize = 18
+    plt.xlabel(xlabel, fontsize=fontsize)
+#    plt.show()
+    plt.savefig('img/'+filename+'.png', format='png')
+    plt.clf()
 
 def observed_changes(marketcode, date_range, always=True, T=1, isin_list=None):
     def read_raw_data(db_connection, marketcode, date_range, isin_list):
@@ -329,19 +352,20 @@ def normal_distribution(sigma, change_range):
 def correlation_distribution(x, a, b):
     return a * np.power(np.abs(np.cos(x * np.pi / 2)), b)
 
-def quote_change_distribution(x, a, b, c):
-    return np.exp(a*x*(1-np.exp(b*x))/(1+np.exp(b*x))+c)
+def quote_change_distribution(x,a,b,c,d):
+    return np.exp((a*x*(1-np.exp(b*x))/(1+np.exp(b*x))+c)*(1+np.exp(-d*x*x))/2)
 
-def market_distribution(a, b, c, change_range):
+def market_distribution(a, b, c, d, change_range):
     max_norm = -1.0
     for _ in range(10000):
         x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
-        p = quote_change_distribution(x, a, b, c)
+        p = quote_change_distribution(x, a, b, c, d)
         max_norm = max_norm if p<max_norm else p
 
     while True:
         x = np.random.rand() * (change_range[1] - change_range[0]) + change_range[0]
         acceptance_prop = np.random.rand()
-        p = quote_change_distribution(x, a, b, c) / max_norm
+        p = quote_change_distribution(x, a, b, c, d) / max_norm
         if p > acceptance_prop:
             yield x
+

@@ -44,8 +44,6 @@ def stress_series(change_generator, offset, filename):
             stress = 0.0
         stress_series.append(stress)
         date_series.append(date)
-        security_count = corr.shape[0] if corr is not None else 0
-        # print("{} {} {:.6f}".format(date.strftime(base.DATE_FORMAT), security_count, stress))
 
     header = ['date', 'stress']
     data_series = np.vstack(([date.strftime(base.DATE_FORMAT) for date in date_series], stress_series)).T
@@ -102,7 +100,7 @@ def market_stress_matrix(marketcode, date, T, filename):
         data_csv = np.append(data_csv, np.concatenate(([[security[0]]], [corr[security_idx]]), axis=1), axis=0)
     np.savetxt('csv/'+filename+'.csv', data_csv, fmt='%s', delimiter=',')
 
-def find_base_securities(marketcode, event_filename, date_range, T, filename):
+def find_principal_securities(marketcode, event_filename, date_range, T, filename):
     event_data = np.loadtxt('csv/'+event_filename+'.csv', dtype=np.unicode, delimiter=',')[1:,:]
     date_from = datetime.strptime(date_range[0], base.DATE_FORMAT)
     date_to = datetime.strptime(date_range[1], base.DATE_FORMAT)
@@ -159,17 +157,50 @@ def calculate_histogram(change_generator, change_range, filename, sample_max = N
     np.savetxt('csv/'+filename+'.csv', np.vstack((bins_avg,hist)).T, fmt='%s', delimiter=',')
     return len(data_change)
 
-def baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, filename):
-    """
-    Calculates baseline stress from synthetic quote changes.
-    Determines base.distribution_correlation for synthetic correlation matrix.
-    """
+def baseline_stress_synthetic_correlation(fit_data_files, trading_days_list, securities, simulation_runs, filename):
     def prob_dist_T1(x, a, b):
         return np.power(x, a) * b
 
     def prob_dist_T2(x, a, b):
         return a * x + b
 
+    interval_data = {}
+    for fit_filename in fit_data_files:
+        data_csv = np.loadtxt('csv/'+fit_filename+'.csv', dtype=np.unicode, delimiter=',')
+        interval_length = data_csv[1:,0].astype(np.float).astype(np.int)
+        data = data_csv[1:,3:].astype(np.float)
+        for idx, interval in enumerate(interval_length):
+            if interval not in interval_data:
+                interval_data[interval] = np.array([data[idx]])
+            else:
+                interval_data[interval] = np.append(interval_data[interval], [data[idx]],axis=0)
+
+    x_fit = np.array([t for t in interval_data.keys()])
+    y_fit = np.array([np.average(interval_data[x],axis=0) for x in x_fit])
+
+    popt1, pcov1 = curve_fit(prob_dist_T1, x_fit, y_fit[:,0], p0=(0.3, 0.5))
+    popt2, pcov2 = curve_fit(prob_dist_T2, x_fit, y_fit[:,1], p0=(0.4, -1.5))
+
+    data_record = ['trading days', 'average stress', 'std stress']
+    data = np.array([data_record])
+    for trading_days in trading_days_list:
+        #print(trading_days)
+        stress_series = []
+        correlation_generator = base.correlation_simulation_generator((popt1[0], popt1[1], popt2[0], popt2[1]), securities, trading_days)
+        for _ in range(simulation_runs):
+            corr = next(correlation_generator)
+            stress = calculate_stress(corr)
+            stress_series.append(stress)
+        data_record = [trading_days, np.average(stress_series), np.std(stress_series)]
+        data = np.append(data, [data_record], axis=0)
+    np.savetxt('csv/'+filename+'.csv', data, fmt='%s', delimiter=',')
+    return (popt1, np.sqrt(np.diag(pcov1))), (popt2, np.sqrt(np.diag(pcov2)))
+
+def baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, filename, correlation_histogram=None):
+    """
+    Calculates baseline stress from synthetic quote changes.
+    Determines base.distribution_correlation for synthetic correlation matrix.
+    """
 
     data_record = ['trading days', 'average stress', 'std stress']
     data_record = np.concatenate((data_record, ["fit param {}".format(i+1) for i in range(2)]))
@@ -189,19 +220,15 @@ def baseline_stress_quote_simulation(trading_days_list, securities, simulation_r
         data_record = [trading_days, np.average(stress_series), np.std(stress_series)]
         hist, bins = np.histogram(corr_elements, bins=100, density=True)
         bins_avg = (bins[1:]+bins[:-1])/2
-        popt, pcov = curve_fit(base.correlation_distribution, bins_avg, hist, p0=(1.9, 20.0))
+        if correlation_histogram and correlation_histogram==trading_days:
+            corr_data = np.append(np.array([['x','p']]), np.vstack((bins_avg, hist)).T, axis=0)
+            np.savetxt('csv/correlation_histogram.csv', corr_data, fmt='%s', delimiter=',')
+
+        popt, _ = curve_fit(base.correlation_distribution, bins_avg, hist, p0=(1.9, 20.0))
         data_record = np.concatenate((data_record, popt))
         data = np.append(data, [data_record], axis=0)
 
-    x = data[1:,0].astype(np.float)
-    p1 = data[1:,3].astype(np.float)
-    p2 = data[1:,4].astype(np.float)
-
-    popt1, pcov1 = curve_fit(prob_dist_T1, x, p1, p0=(0.3, 0.5))
-    popt2, pcov2 = curve_fit(prob_dist_T2, x, p2, p0=(0.4, -1.5))
-
     np.savetxt('csv/'+filename+'.csv', data, fmt='%s', delimiter=',')
-    return (popt1, np.sqrt(np.diag(pcov1))), (popt2, np.sqrt(np.diag(pcov2)))
 
 def baseline_stress_correlation_simulation(securities, simulations, T):
     """ Calculates baseline stress from synthetic correlation matrix """

@@ -11,6 +11,7 @@
 \numberwithin{equation}{section}
 \begin{document}
 \pyc{import python.base as base, python.code as code}
+\pyc{recalculate=False}
 \title{Correlation analysis}
 \author{Thomas Bütikofer}
 \date{\today}
@@ -83,281 +84,383 @@ As a measure of the average market stress this article will use
 f^{(m)}_\mathbb{T} \equiv \langle f_s\rangle=\frac{1}{S}\sum_{s\in\mathbb{S}}f_s=\frac{1}{S}Tr\left(M_\mathbb{S}^\top M_\mathbb{S}\right)\quad.
 \end{equation}
 \begin{pycode}
-ecurities = 100
+securities = 100
 simulation_runs = 1000
 trading_days_list = [5, 10, 20, 40, 80, 160, 320]
-change_range = (-0.5, 0.5)
-filename_uniform = 'market_baseline_stress_uniform'
-change_generator = base.uniform_distribution(change_range)
-code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, filename_uniform)
-param_fit_uniform,  param_error_uniform = base.plot_baseline_stress(filename_uniform)
 
-change_range = (-0.05, 0.05)
-filename_normal = 'market_baseline_stress_normal'
+change_range_normal = (-0.05, 0.05)
+baseline_stress_file = 'baseline_stress_{}'.format('normal')
 sigma = 0.05
-change_generator = base.normal_distribution(sigma, change_range)
-code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, filename_normal)
-param_fit_uniform,  param_error_uniform = base.plot_baseline_stress(filename_normal)
+if recalculate:
+	change_generator = base.normal_distribution(sigma, change_range_normal)
+	code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, baseline_stress_file)
+param_fit_normal,  param_error_normal = base.plot_baseline_stress(baseline_stress_file)
+
+change_range_uniform = (-0.5, 0.5)
+correlation_check_T = 20
+baseline_stress_file = 'baseline_stress_{}'.format('uniform')
+if recalculate:
+	change_generator = base.uniform_distribution(change_range_uniform)
+	code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, baseline_stress_file, correlation_check_T)
+param_fit_uniform,  param_error_uniform = base.plot_baseline_stress(baseline_stress_file)
 \end{pycode}
-Assuming a market with completely random quote fluctuations $\Delta_\mathbb{T}$, its average market stress can be used as an intrinsic market stress to compare against the effective market stress. Average market stresses deviating significantly from this baseline indicate information on non random market effects.\\
-The averaged intrinsic market stress for simulated quote fluctuations $\Delta_\mathbb{T}$ over varying period lengths $T$ for $\py{simulation_runs}$ markets, each with $\py{securities}$. The stress values obtained by assuming for the random quote fluctuations an uniform probability distribution between $\left[-\Delta,\Delta\right]$ or a normal distribution with average $0$ and variance $20$ are indistinguishable.\\
-The dependency of the intrinsic market stress $f^0_\mathbb{T}$ from $T$ can be approximated by
-\begin{align}
-&f^0_\mathbb{T} \approx \alpha T^\beta\label{eqBaselineMarketStress}\\
-\textrm{uniform distribution:}&\quad\alpha=\py{"{:0.2f}".format(param_fit_uniform[0])}\pm\py{"{:0.2f}".format(param_error_uniform[0])}\quad\beta=\py{"{:0.2f}".format(param_fit_uniform[1])}\pm\py{"{:0.2f}".format(param_error_uniform[1])}\nonumber\\
-\textrm{normal distribution:}&\quad\alpha=\py{"{:0.2f}".format(param_fit_normal[0])}\pm\py{"{:0.2f}".format(param_error_normal[0])}\quad\beta=\py{"{:0.2f}".format(param_fit_normal[1])}\pm\py{"{:0.2f}".format(param_error_normal[1])}\nonumber.
-\end{align}
-\begin{figure}
-\centering
-	% trim={<left> <lower> <right> <upper>}
-\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 15 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_uniform))}
-\caption{Dependency of the intrinsic market stress $f^0_\mathbb{T}$ on $T$ on a logarithmic scale. Circles show simulated average market stresses for a market with \py{securities} securities and a uniform distribution between the interval $\left[\py{change_range[0]}, \py{change_range[1]}\right]$ for $\Delta_\mathbb{T}$. The dotted line indicates the approximation  (\ref{eqBaselineMarketStress}).}
-\label{figIntrinsicMarketStress}
-\end{figure}
 \FloatBarrier
 \subsection{Principal securities}
 At times with high market stress $f^{(m)}_\mathbb{T}$ price movements of many securities synchronize. This article defines principal securities as the set of securities whose price movements always synchronize at times of high market stress. In this sense, principal securities represent the general price dynamics of the whole market in times of high market stress.\\
-The search for such principal securities uses the stress matrix $M_\mathbb{S}$ at times of maximal $f^{(m)}_\mathbb{T}$ and employs the K-means algorithm to group all securities into 4 clusters with similar stress vectors. If, for a list of high stress days, the same securities always end up in the cluster with highest stress average, they are considered candidates for principal securities of the respective market.\\
+The search for such principal securities uses the stress matrix $M_\mathbb{S}$ at times of maximal $f^{(m)}_\mathbb{T}$ which assign each security a stress vector. By using the K-means algorithm these securities are grouped into 4 clusters with similar stress vectors. If, for a list of high stress days, the same securities always end up in the cluster with highest stress average, they are considered as principal securities of the respective market.\\
 The existence of principal securities should not be taken for granted for a market over a given time period.
 \FloatBarrier
 \pagebreak
 \section{Results}
 \subsection{Swiss stock exchange SWX}
 \begin{pycode}
-marketcode = 'SWX'
+market_code = 'SWX'
 series_length = 20
 event_filename = 'market_stress_events'
 
 date_range = ('01.01.2000','31.12.2018')
-isin_count = base.market_info(marketcode, date_range)
-market_stress_series = 'market_stress_series_SWX_20000101-20181231'
-change_generator, _ = base.observed_changes(marketcode, date_range, always=False, T=series_length)
-code.stress_series(change_generator, offset=0, filename = market_stress_series)
-base.plot_time_series(market_stress_series, {'T=20':market_stress_series}, event_filename=event_filename)
+stress_series_file = 'stress_series_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, security_list = base.observed_changes(market_code, date_range, always=False, T=series_length)
+	code.stress_series(change_generator, offset=0, filename = stress_series_file)
+else:
+	security_list = [None]*246
+base.plot_time_series({'T=20':stress_series_file}, event_filename=event_filename)
 
-data_range_zoom = ('01.01.2016','31.12.2016')
-market_stress_series_zoom = 'market_stress_series_SWX_20160101-20161231'
-change_generator, _ = base.observed_changes(marketcode, data_range_zoom, always=False, T=series_length)
-code.stress_series(change_generator, offset=0, filename = market_stress_series_zoom)
-base.plot_time_series(market_stress_series_zoom, {'T=20':market_stress_series_zoom}, event_filename=event_filename)
+date_range_zoom = ('01.01.2016','31.12.2016')
+stress_series_zoom_file = 'stress_series_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range_zoom[0]), base.datestamp(date_range_zoom[1]))
+if recalculate:
+	change_generator, _ = base.observed_changes(market_code, date_range_zoom, always=False, T=series_length)
+	code.stress_series(change_generator, offset=0, filename = stress_series_zoom_file)
+base.plot_time_series({'T=20':stress_series_zoom_file}, event_filename=event_filename)
 \end{pycode}
-For the SIX Swiss exchange (\py{market_code}) the daily changes in quotes of \py{isin_count} securities with CH... ISIN codes over the time interval \py{date_from} - \py{date_to} have been analyzed.\\
-During this time interval the market experienced several external economic and/or political events with potential effects on the traded security's quotes. Most notable among these has certainly been the decisions of the Swiss national bank to cap the CHF-EUR exchange rate and subsequent removal of the cap.\\
+For the SIX Swiss exchange (\py{market_code}) the daily changes in quotes of \py{len(security_list)} securities with ISIN codes issued in Switzerland over the time interval \py{date_range[0]} - \py{date_range[1]} have been analyzed.\\
+During this time interval, the probability distribution for a quote change to occur between two trading days is markedly non-Gaussian and shown in figure \ref{figSWXDist}. The peak at $\Delta=0$ is caused by illiquid securities which are not traded on a daily basis and their prices may remain consequently at the last known quote for several days.\\
+
 \begin{pycode}
-marketcode = 'SWX'
+market_code = 'SWX'
 date_range = ('01.01.2000','31.12.2018')
-change_range = (-0.05, 0.05)
-change_generator, _ = base.observed_changes(marketcode, date_range)
-filename = 'change_histogram_SWX_20000101-20181231'
-sample_size = code.calculate_histogram(change_generator, change_range, filename)
-fit_param = (66, 152, 3.21)
-base.plot_histogram(filename, fit_param, r'$\Delta^{(SWX)}$')
+change_range = (-0.2, 0.2)
+change_histogram_file = 'change_histogram_{}_{}-{}'.format(market_code, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, _ = base.observed_changes(market_code, date_range)
+	sample_size = code.calculate_histogram(change_generator, change_range, change_histogram_file)
+else:
+	sample_size = 473360
+market_param_SWX = (66, 123, 3.09, 110)
+fit_param, fit_param_error = base.plot_histogram(change_histogram_file, market_param_SWX, r'$\Delta^{(SWX)}$')
+#print(fit_param, fit_param_error)
+
+change_range = (-0.1, 0.1)
+baseline_stress_file = 'baseline_stress_{}'.format(market_code)
+if recalculate:
+	change_generator = base.market_distribution(
+        market_param_SWX[0], market_param_SWX[1], market_param_SWX[2], market_param_SWX[3], change_range)
+	code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, baseline_stress_file)
+market_fit_SWX,  market_fit_error_SWX = base.plot_baseline_stress(baseline_stress_file)
+#print(market_fit_SWX, market_fit_error_SWX)
+baseline_stress_20 = float(base.load_list('baseline_stress_SWX')[3,1])
 \end{pycode}
-\begin{figure}
+\begin{figure}[!ht]
 \centering
 	% trim={<left> <lower> <right> <upper>}
-\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename))}
-\caption{Probabilty distribution for \py{sample_size} quote changes on market \py{marketcode} during the period \py{date_range[0]} - \py{date_range[1]}.\\
-The dashed curve indicates the approximation (\ref{eqQuoteChangeDist}) with paramters (\ref{eqSWXDist}).}
-\label{figChangeDistSWX}
+\pyc{print(r'\includegraphics[trim=0 10 0 50,clip,width=\columnwidth]{{{{"img/{}"}}}}'.format(change_histogram_file))}
+\caption{Probabilty distribution for \py{sample_size} quote changes on market \py{market_code} during the period \py{date_range[0]} - \py{date_range[1]}.\\
+The dashed curve indicates the approximation (\ref{eqQuoteChangeDist}) with parameters (\ref{eqSWXDist}).}
+\label{figSWXDist}
 \end{figure}
+The probability of a price change to occur has been found to be approximated by
 \begin{equation}
-p(\Delta)\approx e^{\alpha\frac{1-e^{\beta\Delta}}{1+e^{\beta\Delta}}\Delta+\gamma}\label{eqQuoteChangeDist}
+%p(\Delta)\approx e^{\alpha\frac{1-e^{\beta\Delta}}{1+e^{\beta\Delta}}\Delta+\gamma\Delta^4+\delta}\label{eqQuoteChangeDist}\\
+p(\Delta)\approx exp\left[\left(\alpha\Delta\frac{1-e^{\beta\Delta}}{1+e^{\beta\Delta}}+\gamma\right)\left(1+e^{-\delta\Delta^2}\right)\right]\;,\label{eqQuoteChangeDist}
 \end{equation}
+with these parameters as a best fit for market SWX:
 \begin{equation}
-\alpha\approx\py{fit_param[0]}\quad\beta\approx\py{fit_param[1]}\quad\gamma\approx\py{fit_param[2]}\label{eqSWXDist}
+\alpha\approx\py{market_param_SWX[0]}\quad\beta\approx\py{market_param_SWX[1]}\quad\gamma\approx\py{market_param_SWX[2]}\quad\delta\approx\py{market_param_SWX[3]}\;.\label{eqSWXDist}
 \end{equation}
-The market stress $f_\mathbb{T}$ for \py{market_code} with time interval length $T=\py{series_length}$ is shown in figure \ref{figSWXstress} (top). Over a background noise of $0.25 < f_\mathbb{T} < 0.30$, distinctive peaks in market stress exist. See table \ref{tab_marketevents} for a detailed list of events with market stress above $0.35$.\\
+The market stress $f_\mathbb{T}$ for \py{market_code} with time interval length $T=\py{series_length}$ is shown in figure \ref{figSWXstress} (top). Over a background noise level at about $0.23$, distinctive peaks in market stress exist.
 
-Zooming into the period \py{zoom_date_from} - \py{zoom_date_to}, which includes the Brexit referendum in the UK, sheds some light on the dynamics linking this event to the market stress (figure \ref{figSWXstress}, bottom). The market stress increases sharply in the days following the publication of the referendum's results, followed by two even more pronounced peaks. The width of the elevated stress levels above 0.30 corresponds to the resolution of $T=\py{series_length}$ of this analysis.
-\\
-\begin{figure}
+\begin{figure}[!ht]
 \centering
 \begin{subfigure}[b]{\textwidth}
 	% trim={<left> <lower> <right> <upper>}
-	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_market_full_stress))}
+	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(stress_series_file))}
 \end{subfigure}
 \begin{subfigure}[b]{\textwidth}
-	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_market_zoom_stress))}
+	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(stress_series_zoom_file))}
 \end{subfigure}
 \caption{Market stress for \py{market_code} over the interval length $T=\py{series_length}$. The horizontal axis indicates the last day of the time period resulting in the market stress $f_\mathbb{T}$. Notable events from table \ref{tab_marketevents} are indicated as dotted vertical lines.\\
 Top: Market stress over the whole analyzed time period. Bottom: Enlarged section containing the Brexit referendum.
 }
 \label{figSWXstress}
 \end{figure}
+Zooming into the period \py{date_range_zoom[0]} - \py{date_range_zoom[1]}, which includes the Brexit referendum in the UK, suggests the referendum as a possible cause for heightened marked stress following 23.06.2016. The width of the $f_\mathbb{T}$ peak after this date illustrates the temporal resolution of an analysis with interval length $T=\py{series_length}$.\\
 
-While figure \ref{figSWXstress} indicates dates with high average correlation between security quote series, figure \ref{figSWXstressmap} gives an indication how many of the traded securities can follow similar trends. Although on trading days with increased market stress more  quotes behave similarly, the events affect by no means all securities equally strong. By using the K-means algorithm to group all securities into 4 clusters with similar stress vectors, the most affected securities for each event 
-  
-\begin{pycode}
-market_code = 'SWX'
-event_filename = 'market_stress_events'
-date_range = ('01.01.2013','31.12.2018')
-series_length = 20
-filename = 'market_base_SWX_20130101-20181231-20'
-code.find_base_securities(market_code, event_filename, date_range, series_length, filename)
-security_list = base.load_list(filename)
-\end{pycode}
-\begin{table}
-\centering
-\begin{tabular}{l|l}
-\pyc{base.latex_table(security_list)}
-\end{tabular}
-\caption{Principal securities for \py{market_code}. The listed securities exhibited the general market price movements in all stress events (see table \ref{tab_marketevents}) during the time period \py{date_from} - \py{date_to}.}
-\label{tabSWXstressedSecurities}
-\end{table}
-\begin{pycode}
-market_code = 'SWX'
-series_length = 20
+While figure \ref{figSWXstress} indicates the evolution of the market stress over time, the Pearson correlation between pairs of traded securities is represented by the heat map shown in figure \ref{figSWXstressmap}. Securities with similar correlation vectors are identified and grouped into 4 categories using an K-means algorithm. For visual effect, securities are ordered by the average correlation value of their respective category and their own correlation value with respect to the other securities in the same category.
 
+\begin{pycode}
+series_length = 20
 date_low = '18.03.2017'
-filename_low = 'market_stress_SWX_20170318-20'
-code.market_stress_matrix(market_code, date_low, series_length, filename_low)
-base.plot_matrix(filename_low, (-1,1))
+stress_matrix_low_file = 'stress_{}_{}_{}'.format(market_code, series_length, base.datestamp(date_low))
+if recalculate:
+	code.market_stress_matrix(market_code, date_low, series_length, stress_matrix_low_file)
+base.plot_matrix(stress_matrix_low_file, (-1,1))
 
 date_high = '17.01.2015'
-filename_high = 'market_stress_SWX_20150117-20'
-code.market_stress_matrix(market_code, date_high, series_length, filename_high)
-base.plot_matrix(filename_high, (-1,1))
+stress_matrix_high_file = 'stress_{}_{}_{}'.format(market_code, series_length, base.datestamp(date_high))
+if recalculate:
+	code.market_stress_matrix(market_code, date_high, series_length, stress_matrix_high_file)
+base.plot_matrix(stress_matrix_high_file, (-1,1))
 \end{pycode}
-\begin{figure}
+\begin{figure}[!ht]
 \centering
 \begin{subfigure}[b]{0.48\textwidth}
 	% trim={<left> <lower> <right> <upper>}
-	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(filename_low))}
+	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(stress_matrix_low_file))}
 \end{subfigure}
 ~
 \begin{subfigure}[b]{0.48\textwidth}
-	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(filename_high))}
+	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(stress_matrix_high_file))}
 \end{subfigure}
 \caption{Heat map of market stress $M_\mathbb{S}$ between pairs of traded securities at \py{market_code}. Securities are ordered by decreasing stress $(f_\mathbb{T})_s$.\\
 Left: $\py{date_low}$ as an example of a market under minimal stress. Right: $\py{date_high}$, after the announcement of the Swiss national bank to decouple the Swiss franc from the Euro caused considerable market stress.}
 \label{figSWXstressmap}
 \end{figure}
+Principal securities end up in the category with highest correlation values during each period of high market stress. 
+The principal securities which exhibited the highest correlation with the rest of the market during all periods of high overall market stress are listed in table \ref{tabSWXstressedSecurities}.
+\begin{pycode}
+event_filename = 'market_stress_events'
+date_range = ('01.01.2013','31.12.2018')
+series_length = 20
+principal_securities_file = 'principal_securities_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	code.find_principal_securities(market_code, event_filename, date_range, series_length, principal_securities_file)
+security_list = base.load_list(principal_securities_file)
+\end{pycode}
+\begin{table}[!ht]
+\centering
+\begin{tabular}{l|l}
+\pyc{base.latex_table(security_list)}
+\end{tabular}
+\caption{Principal securities for \py{market_code}. The listed securities exhibited the general market price movements in all stress events (see table \ref{tab_marketevents}) during the time period \py{date_range[0]} - \py{date_range[1]}.}
+\label{tabSWXstressedSecurities}
+\end{table}
+
 \FloatBarrier
 \subsection{German stock exchange XETR}
 \begin{pycode}
-marketcode = 'XETR'
+market_code = 'XETR'
+date_range = ('01.02.2003','31.12.2018')
+change_range = (-0.2, 0.2)
+change_histogram_file = 'change_histogram_{}_{}-{}'.format(market_code, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, _ = base.observed_changes(market_code, date_range)
+	sample_size = code.calculate_histogram(change_generator, change_range, change_histogram_file)
+else:
+	sample_size = 619191
+market_param_XETR = (56.8, 121, 3.04, 57)
+fit_param, fit_param_error = base.plot_histogram(change_histogram_file, market_param_XETR, r'$\Delta^{(XETR)}$')
+#print(fit_param, fit_param_error)
+
+baseline_stress_file = 'baseline_stress_{}'.format(market_code)
+if recalculate:
+	change_generator = base.market_distribution(
+        market_param_XETR[0], market_param_XETR[1], market_param_XETR[2], market_param_XETR[3], change_range)
+	code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, baseline_stress_file)
+market_fit_XETR,  market_fit_error_XETR = base.plot_baseline_stress(baseline_stress_file)
+#print(market_fit_XETR, market_fit_error_XETR)
+\end{pycode}
+For the German stock exchange Xetra (\py{market_code}) the daily changes in quotes of \py{len(security_list)} securities with ISIN codes issued in Germany over the time interval \py{date_range[0]} - \py{date_range[1]} have been analyzed.\\
+During this time interval, the probability distribution for a quote change to occur between two trading days is markedly non-Gaussian and shown in figure \ref{figXETRDist}. As for SWX, illiquid securities cause a peak at $\Delta=0$.\\
+\begin{figure}[!ht]
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[trim=0 10 0 50,clip,width=\columnwidth]{{{{"img/{}"}}}}'.format(change_histogram_file))}
+\caption{Probabilty distribution for \py{sample_size} quote changes on market \py{market_code} during the period \py{date_range[0]} - \py{date_range[1]}.\\
+The dashed curve indicates the approximation (\ref{eqQuoteChangeDist}) with parameters (\ref{eqXETRDist}).}
+\label{figXETRDist}
+\end{figure}
+
+The distribution of daily price changes for market XETR is approximated by \ref{eqQuoteChangeDist} with parameters:
+\begin{equation}
+\alpha\approx\py{market_param_XETR[0]}\quad\beta\approx\py{market_param_XETR[1]}\quad\gamma\approx\py{market_param_XETR[2]}\quad\delta\approx\py{market_param_XETR[3]}\;.\label{eqXETRDist}
+\end{equation}
+\begin{pycode}
+market_code = 'XETR'
 series_length = 20
 event_filename = 'market_stress_events'
 
 date_range = ('01.01.2003','31.12.2018')
-isin_count = base.market_info(marketcode, date_range)
-market_stress_series = 'market_stress_series_XETR_20030101-20181231'
-change_generator, _ = base.observed_changes(marketcode, date_range, always=False, T=series_length)
-code.stress_series(change_generator, offset=0, filename = market_stress_series)
-base.plot_time_series(market_stress_series, {'T=20':market_stress_series}, event_filename=event_filename)
+stress_series_file = 'stress_series_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, security_list = base.observed_changes(market_code, date_range, always=False, T=series_length)
+	code.stress_series(change_generator, offset=0, filename=stress_series_file)
+else:
+	security_list = [None]*473
+base.plot_time_series({'T=20':stress_series_file}, event_filename=event_filename)
 \end{pycode}
-For the German stock exchange Xetra (\py{market_code}) the daily changes in quotes of \py{isin_count} securities with DE... ISIN codes over the time interval \py{date_from} - \py{date_to} have been analyzed.\\
-With the disjoint sets of traded securities for SWX and XETR, the analysis of the German market is intended to suggest common features between the two geographically close markets and identify potential properties specific two one of the two markets.\\
 
-The market stress $f_\mathbb{T}$ for \py{market_code} with time interval length $T=\py{series_length}$ is shown in figure \ref{figXETRstress} (top). The range of market stresses and background noise between $0.25 < f_\mathbb{T} < 0.30$ is comparable to SWX. While several stress peaks between the two markets coincide, there are some differences (see table \ref{tab_marketevents}).\\
+The market stress $f_\mathbb{T}$ for \py{market_code} with time interval length $T=\py{series_length}$ is shown in figure \ref{figXETRstress}. The level of market stresses and background noise at around $0.24$ is comparable to the values found for SWX.\\
 
-\begin{figure}
+\begin{figure}[!ht]
 \centering
 	% trim={<left> <lower> <right> <upper>}
-\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_market_full_stress))}
+\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(stress_series_file))}
 \caption{Market stress for \py{market_code} over the interval length $T=\py{series_length}$. The horizontal axis indicates the last day of the time period resulting in the market stress $f_\mathbb{T}$. Notable events from table \ref{tab_marketevents} are indicated as dotted vertical lines.}
 \label{figXETRstress}
 \end{figure}
 \begin{pycode}
 market_code = 'XETR'
-date_from =  '01.01.2013'
-date_to = '31.12.2018'
+event_filename = 'market_stress_events'
+date_range = ('01.01.2013','31.12.2018')
 series_length = 20
-#filename = code.find_base_securities(market_code, market_events, date_from, date_to, series_length)
-filename = 'market_base_XETR_20130101-20181231-20'
-security_list = base.load_list(filename)
+principal_securities_file = 'principal_securities_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	code.find_principal_securities(market_code, event_filename, date_range, series_length, principal_securities_file)
+security_list = base.load_list(principal_securities_file)
 \end{pycode}
-\begin{table}
+\begin{table}[!ht]
 \centering
 \begin{tabular}{l|l}
 \pyc{base.latex_table(security_list)}
 \end{tabular}
-\caption{Principal securities for \py{market_code}. The listed securities exhibited the general market price movements in all stress events (see table \ref{tab_marketevents}) during the time period \py{date_from} - \py{date_to}.}
+\caption{Principal securities for \py{market_code}. The listed securities exhibited the general market price movements in all stress events (see table \ref{tab_marketevents}) during the time period \py{date_range[0]} - \py{date_range[1]}.}
 \label{tabXETRstressedSecurities}
 \end{table}
-\begin{pycode}
-market_code = 'XETR'
-date_low = '27.09.2017'
-date_high = '15.09.2015'
-series_length = 20
-cluster_num = 1
-#filename_low = code.calc_market_stress(market_code, date_low, series_length, cluster_num)
-filename_low = 'market_stress_XETR_20170927-20'
-base.plot_matrix(filename_low, (-1,1))
-#filename_high = code.calc_market_stress(market_code, date_high, series_length, cluster_num)
-filename_high = 'market_stress_XETR_20150915-20'
-base.plot_matrix(filename_high, (-1,1))
-\end{pycode}
-\begin{figure}
-\centering
-\begin{subfigure}[b]{0.48\textwidth}
-	% trim={<left> <lower> <right> <upper>}
-	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(filename_low))}
-\end{subfigure}
-~
-\begin{subfigure}[b]{0.48\textwidth}
-	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(filename_high))}
-\end{subfigure}
-\caption{Heat map of market stress $M_\mathbb{S}$ between pairs of traded securities at \py{market_code}. Securities are ordered by decreasing stress $(f_\mathbb{T})_s$.\\
-Left: $\py{date_low}$ as an example of a market under minimal stress. Right: $\py{date_high}$.}
-\label{figSWXstressmap}
-\end{figure}
 \FloatBarrier
 \newpage
 \subsection{Crypto currencies}
 \begin{pycode}
 market_code = 'CRYP'
-date_from = '01.01.2015'
-date_to = '31.12.2018'
-series_length = 20
+date_range = ('01.01.2015','31.12.2018')
+change_range = (-0.2, 0.2)
+change_histogram_file = 'change_histogram_{}_{}-{}'.format(market_code, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, _ = base.observed_changes(market_code, date_range)
+	sample_size = code.calculate_histogram(change_generator, change_range, change_histogram_file)
+else:
+	sample_size = 18990
+market_param_CRYP = (17.9, 84, 1.97, 0)
+fit_param, fit_param_error = base.plot_histogram(change_histogram_file, market_param_CRYP, r'$\Delta^{(CRYP)}$')
+#print(fit_param, fit_param_error)
 
-isin_count = base.market_info(market_code, date_from, date_to)
-
-filename_market_full_stress = 'market_stress_CRYP_20150101-20181231'
-#filename_market_full_stress = code.calc_market_momentum(market_code,date_from,date_to, series_lengths=[series_length], step_days=7, offset=0)
-base.plot_time_series(filename_market_full_stress, legends=[''], events=market_events)
+baseline_stress_file = 'baseline_stress_{}'.format(market_code)
+if recalculate:
+	change_generator = base.market_distribution(
+        market_param_CRYP[0], market_param_CRYP[1], market_param_CRYP[2], market_param_CRYP[3], change_range)
+	code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, baseline_stress_file)
+market_fit_CRYP,  market_fit_error_CRYP = base.plot_baseline_stress(baseline_stress_file)
+#print(market_fit_CRYP, market_fit_error_CRYP)
 \end{pycode}
-For the crypto currency data, daily quotes from \url{www.cryptocurrencychart.com} for \py{isin_count} currencies over the time interval \py{date_from} - \py{date_to} have been analyzed.\\
-Although all analyzed crypto currency data sets were obtained from \url{www.cryptocurrencychart.com}, the trading platforms which produced the quotes are unknown. The results of the crypto currency analysis therefore do not reflect the experienced stress of a single market, but rather of the global crypto trades.
-\begin{figure}
+For the crypto currency data, daily quotes from \url{www.cryptocurrencychart.com} for \py{len(security_list)} currencies over the time interval \py{date_range[0]} - \py{date_range[1]} have been analyzed.\\
+Although all analyzed crypto currency data sets were obtained from \url{www.cryptocurrencychart.com}, the trading platforms which produced the quotes are unknown. The results of the crypto currency analysis therefore do not reflect the experienced stress of a single market, but rather of the global crypto trades.\\
+During the analyzed time interval, many crypto currencies have only occasionally been traded, many without daily price changes. As a consequence the peak at $\Delta=0$ is much more pronounced than for SWX or XETR.\\
+\begin{figure}[!ht]
 \centering
 	% trim={<left> <lower> <right> <upper>}
-\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(filename_market_full_stress))}
-\caption{Market stress for crypto currencies over the interval length $T=\py{series_length}$. The horizontal axis indicates the last day of the time period resulting in the market stress $f_\mathbb{T}$. Notable events from table \ref{tab_marketevents} are indicated as dotted vertical lines.}
-\label{figXETRstress}
+\pyc{print(r'\includegraphics[trim=0 10 0 50,clip,width=\columnwidth]{{{{"img/{}"}}}}'.format(change_histogram_file))}
+\caption{Probabilty distribution for \py{sample_size} quote changes on market \py{market_code} during the period \py{date_range[0]} - \py{date_range[1]}.\\
+The dashed curve indicates the approximation (\ref{eqQuoteChangeDist}) with parameters (\ref{eqCRYPDist}).}
+\label{figChangeDistCRYP}
 \end{figure}
 
+The distribution of daily price changes for market CRYP is approximated by \ref{eqQuoteChangeDist} with parameters:
+\begin{equation}
+\alpha\approx\py{market_param_CRYP[0]}\quad\beta\approx\py{market_param_CRYP[1]}\quad\gamma\approx\py{market_param_CRYP[2]}\quad\delta\approx\py{market_param_CRYP[3]}\;.\label{eqCRYPDist}
+\end{equation}
 \begin{pycode}
 market_code = 'CRYP'
-date_low = '29.10.2017'
-date_high = '20.02.2018'
 series_length = 20
-cluster_num = 1
-#filename_low = code.calc_market_stress(market_code, date_low, series_length, cluster_num)
-filename_low = 'market_stress_CRYP_20171029-20'
-base.plot_matrix(filename_low, (-1,1))
-#filename_high = code.calc_market_stress(market_code, date_high, series_length, cluster_num)
-filename_high = 'market_stress_CRYP_20180220-20'
-base.plot_matrix(filename_high, (-1,1))
+event_filename = 'market_stress_events'
+
+date_range = ('01.01.2015','31.12.2018')
+stress_series_file = 'stress_series_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, security_list = base.observed_changes(market_code, date_range, always=False, T=series_length)
+	code.stress_series(change_generator, offset=0, filename=stress_series_file)
+else:
+	security_list = [None]*209
+base.plot_time_series({'T=20':stress_series_file}, event_filename=event_filename)
 \end{pycode}
-\begin{figure}
+
+\begin{figure}[!ht]
 \centering
-\begin{subfigure}[b]{0.48\textwidth}
 	% trim={<left> <lower> <right> <upper>}
-	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(filename_low))}
-\end{subfigure}
-~
-\begin{subfigure}[b]{0.48\textwidth}
-	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(filename_high))}
-\end{subfigure}
-\caption{Heat map of market stress $M_\mathbb{S}$ between pairs of crypto currencies. Currencies are ordered by decreasing stress $(f_\mathbb{T})_s$.\\
-Left: $\py{date_low}$ as an example of a market under minimal stress. Right: $\py{date_high}$.}
-\label{figSWXstressmap}
+\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(stress_series_file))}
+\caption{Market stress for crypto currencies over the interval length $T=\py{series_length}$. The horizontal axis indicates the last day of the time period resulting in the market stress $f_\mathbb{T}$. Notable events from table \ref{tab_marketevents} are indicated as dotted vertical lines.}
+\label{figCRYPstress}
 \end{figure}
 \FloatBarrier
 \section{Discussion}
-\begin{table}
+\subsection{Baseline market stress}
+Assuming a market with completely random quote fluctuations $\Delta_\mathbb{T}$, its average market stress can be used as an intrinsic market stress to compare against the effective market stress. Average market stresses deviating significantly from this baseline indicate information on non random market effects.\\
+
+The averaged intrinsic market stress for simulated quote fluctuations $\Delta_\mathbb{T}$ over varying period lengths $T$ for $\py{simulation_runs}$ markets, each with $\py{securities}$ securities. The stress values obtained by assuming for the random quote fluctuations an uniform probability distribution between $\left[\py{change_range_normal[0]},\py{change_range_normal[1]}\right]$ or a normal distribution with average $0$ and variance $20$ are indistinguishable.\\
+The dependency of the intrinsic market stress $f^0_\mathbb{T}$ from $T$ can be approximated by
+\begin{align}
+&f^0_\mathbb{T} \approx \alpha T^\beta\label{eqBaselineMarketStress}\\
+\textrm{uniform distribution:}&\quad\alpha=\py{"{:0.3f}".format(param_fit_uniform[0])}\pm\py{"{:0.3f}".format(param_error_uniform[0])}\quad\beta=\py{"{:0.3f}".format(param_fit_uniform[1])}\pm\py{"{:0.3f}".format(param_error_uniform[1])}\nonumber\\
+\textrm{normal distribution:}&\quad\alpha=\py{"{:0.3f}".format(param_fit_normal[0])}\pm\py{"{:0.3f}".format(param_error_normal[0])}\quad\beta=\py{"{:0.3f}".format(param_fit_normal[1])}\pm\py{"{:0.3f}".format(param_error_normal[1])}\nonumber.
+\end{align}
+\begin{figure}[!ht]
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 15 50 50}},clip]{{{{"img/{}"}}}}'.format(baseline_stress_file))}
+\caption{Dependency of the intrinsic market stress $f^0_\mathbb{T}$ on $T$ on a logarithmic scale. Circles show simulated average market stresses for a market with \py{securities} securities and a uniform distribution between the interval $\left[\py{change_range_uniform[0]}, \py{change_range_uniform[1]}\right]$ for $\Delta_\mathbb{T}$. The dotted line indicates the approximation  (\ref{eqBaselineMarketStress}).}
+\label{figIntrinsicMarketStress}
+\end{figure}
+\begin{pycode}
+securities = 100
+simulation_runs = 1000
+trading_days_list = [5, 10, 20, 40, 80, 160, 320]
+baseline_stress_file = 'baseline_stress_synthetic'
+file_list = [
+	'baseline_stress_uniform','baseline_stress_normal',
+	'baseline_stress_SWX','baseline_stress_XETR', 'baseline_stress_CRYP']
+if False:
+	synth_corr_param, synth_corr_error = code.baseline_stress_synthetic_correlation(file_list, trading_days_list, securities, simulation_runs, baseline_stress_file)
+else:
+	synth_corr_param = ([0.52599842, 0.3481435], [0.41640685, -1.48280483])
+	synth_corr_error = ([0.01103528, 0.02006066], [0.00095922, 0.13395941])
+market_fit_synth,  market_fit_error_synth = base.plot_baseline_stress(baseline_stress_file)
+base.plot_correlation_histogram(correlation_check_T, synth_corr_param, r'$\chi$')
+\end{pycode}
+It is notable that $\Delta=0.2$ quote changes are orders of magnitude more likely to occur than a Gaussian distribution might suggest.\\
+\begin{table}[!ht]
+\begin{tabular}{c | c | c || c}
+distribution & $\alpha$ & $\beta$\\
+\hline
+uniform & $\py{"{:0.3f}".format(param_fit_uniform[0])} \pm \py{"{:0.3f}".format(param_error_uniform[0])}$ & $\py{"{:0.3f}".format(param_fit_uniform[1])} \pm \py{"{:0.3f}".format(param_error_uniform[1])}$ & 42\\
+normal & $\py{"{:0.3f}".format(param_fit_normal[0])} \pm \py{"{:0.3f}".format(param_error_normal[0])}$ & $\py{"{:0.3f}".format(param_fit_normal[1])} \pm \py{"{:0.3f}".format(param_error_normal[1])}$ & 42\\
+SWX & $\py{"{:0.3f}".format(market_fit_SWX[0])} \pm \py{"{:0.3f}".format(market_fit_error_SWX[0])}$ & $\py{"{:0.3f}".format(market_fit_SWX[1])} \pm \py{"{:0.3f}".format(market_fit_error_SWX[1])}$ & 42\\
+XETR & $\py{"{:0.3f}".format(market_fit_XETR[0])} \pm \py{"{:0.3f}".format(market_fit_error_XETR[0])}$ & $\py{"{:0.3f}".format(market_fit_XETR[1])} \pm \py{"{:0.3f}".format(market_fit_error_XETR[1])}$ & 42\\
+CRYP & $\py{"{:0.3f}".format(market_fit_CRYP[0])} \pm \py{"{:0.3f}".format(market_fit_error_CRYP[0])}$ & $\py{"{:0.3f}".format(market_fit_CRYP[1])} \pm \py{"{:0.3f}".format(market_fit_error_CRYP[1])}$ & 42\\
+synthetic correlation & $\py{"{:0.3f}".format(market_fit_synth[0])} \pm \py{"{:0.3f}".format(market_fit_error_synth[0])}$ & $\py{"{:0.3f}".format(market_fit_synth[1])} \pm \py{"{:0.3f}".format(market_fit_error_synth[1])}$ & 42
+\end{tabular}
+\end{table}
+\begin{equation}
+p(\chi) = aT^b\left\lvert \cos\left(\frac{\chi\pi}{2}\right)\right\rvert^{cT+d}
+\label{eqCorrelationApprox}
+\end{equation}
+\begin{align}
+a\approx\py{"{:0.3f}".format(synth_corr_param[0][0])} \pm \py{"{:0.3f}".format(synth_corr_error[0][0])} & \quad b\approx\py{"{:0.3f}".format(synth_corr_param[0][1])} \pm \py{"{:0.3f}".format(synth_corr_error[0][1])}\nonumber\\
+c\approx\py{"{:0.3f}".format(synth_corr_param[1][0])} \pm \py{"{:0.3f}".format(synth_corr_error[1][0])} & \quad d\approx\py{"{:0.3f}".format(synth_corr_param[1][1])} \pm \py{"{:0.3f}".format(synth_corr_error[1][1])}
+\label{eqCorrelationApproxParams}
+\end{align}
+\begin{figure}[!ht]
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\includegraphics[trim=0 10 0 50,clip,width=0.7\columnwidth]{img/correlation_histogram}
+\caption{Probability distribution of off-diagonal matrix elements for a uniform quote change distribution with $T=\py{correlation_check_T}$. The dashed curve indicates the approximation (\ref{eqCorrelationApprox}) with parameters (\ref{eqCorrelationApproxParams}).}
+\label{figChangeDistSWX}
+\end{figure}
+\subsection{Potential causes for market stress}
+During the analyzed time interval the market experienced several external economic and/or political events with potential effects on the traded security's quotes. Most notable among these has certainly been the decisions of the Swiss national bank to cap the CHF-EUR exchange rate and subsequent removal of the cap.\\
+
+With the disjoint sets of traded securities for SWX and XETR, the analysis of the German market is intended to suggest common features between the two geographically close markets and identify potential properties specific two one of the two markets.\\
+
+
+\begin{table}[!ht]
 \begin{tabular}{c|c|c|c|l}
 \# & SWX & XETR & \multicolumn{2}{|c}{Event}\\
 \hline
