@@ -1,0 +1,603 @@
+\documentclass[11pt,twoside,a4paper]{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{pythontex}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{url}
+\usepackage{placeins} 
+\usepackage{multirow}
+\numberwithin{equation}{section}
+\numberwithin{figure}{section}
+\numberwithin{table}{section}
+\begin{document}
+\pyc{import python.base as base, python.code as code}
+%%%
+%%% Change this to True for a complete recalculation
+\pyc{recalculate=False}
+%%%
+\title{Collective market movements}
+\author{Thomas Bütikofer}
+\date{\today}
+\maketitle
+\begin{abstract}
+Collective daily price movements in stock markets SIX Swiss Exchange (SWX) and Xetra are quantified and compared with crypto currencies. Probability distributions for time series are evaluated for all three markets. The Pearson correlation between time series is interpreted as stress experienced by the market. Collective price movements synchronized between SWX and Xetra have been found. A universal statistical ensemble of matrices is proposed to describe the Pearson correlation between time series, independent of their statistical properties.
+\end{abstract}
+\section{Introduction}
+The study of correlations between price movements of traded securities provides an important indicator on a market's health. A completely independent pricing of securities by the market's participant's is commonly assumed but unlikely. On the other hand, highly correlated price movements between all traded securities implies that the fundamentals of the different issuers of these securities play no role in the determination of a security's price \footnote{As will be shown is the case for the pricing of crypto currencies, where fundamentals are absent.}. The market acts as if only one security is traded.\\
+
+The series of closing quotes $q$ for a security $s$, traded on market $m$ during the time interval $\mathbb{T}\equiv\{t_0,\ldots t_T\}$ with $T+1$ trading days are denoted by
+\begin{align}
+q^{(m)}_{s}:\mathbb{T}\rightarrow\mathbb{R}\quad.
+\label{eqDefQuoteSeries}
+\end{align}
+Let $\mathbb{S}^{(m)}_\mathbb{T}$ be the set of $S$ securities which have been traded at the first and last trading day of the interval $\mathbb{T}$.\\
+By introducing an arbitrary order into $\mathbb{S}^{(m)}_\mathbb{T}$, the function
+\begin{eqnarray}
+Q^{(m)}_{\mathbb{T}}:\mathbb{S}\times\mathbb{T}&\rightarrow&\mathbb{R}\\
+(s,t)&\mapsto&q^{(m)}_s(t)
+\end{eqnarray}
+defines a matrix $Q^{(m)}_{\mathbb{T}}$ for $S$ securities with $T+1$ quotes each:
+\begin{equation}
+(Q^{(m)}_{\mathbb{T}})_{st}\equiv Q^{(m)}_{\mathbb{T}}(s,t)\quad.
+\end{equation}
+Instead of analyzing absolute changes in a security's price, this article will use the series $\Delta^{(m)}_{\mathbb{T}}$ of relative changes, normalized by a logarithm 
+\begin{equation}
+\left(\Delta^{(m)}_{\mathbb{T}}\right)_{st} \equiv \log\left[\frac{Q^{(m)}_{\mathbb{T}}(s,t)}{Q^{(m)}_{\mathbb{T}}(s,t-1)}\right]\quad t\in\{1\ldots T\}\quad.
+\end{equation}
+$\Delta^{(m)}_{\mathbb{T}}$ is a matrix of dimension $T\times S$.\\
+
+This transformation intends to focus the analysis on relative changes of a security's quote and put the same attention on gains and losses.\\
+The rest of this article will on most occasions omit the indication of the market and the relevant time period and just use $\Delta_s$ for the time series of a specific security $s$, and $\Delta$ for the set of the time series of all considered securities.\\
+The average over all securities will be denoted as
+\begin{equation}
+\langle\Delta(t)\rangle_\mathbb{S}\equiv\frac{1}{S}\sum_{s\in \mathbb{S}}\Delta_s(t)\quad,
+\end{equation}
+while the average over time will be written as
+\begin{equation}
+\langle\Delta_s\rangle_\mathbb{T}\equiv\frac{1}{T}\sum_{t\in \mathbb{T}}\Delta_s(t)\quad.
+\end{equation}
+\section{Methods}
+\subsection{Data preparation}
+For less volatile securities, gaps may occur in their time series of day closing quotes on trading days without a single trade. Such gaps are filled with the last known value of the preceding trading day.\\
+Market holidays are regarded as non-existent. I.e. trading days are considered as subsequent, even if they are separated by one or multiple market holidays. The motivation being that without trades, there is no market.
+\subsection{Market stress analysis}
+The Pearson correlation can be used to quantify the similarity between a pair of security quote series of length $T$
+\begin{equation}
+\left(C_\mathbb{S}\right)_{s_1s_2}=\frac{T}{T-1}\frac{\langle\left(\Delta_{s_1}-\langle\Delta_{s_1}\rangle_\mathbb{T}\right)\left(\Delta_{s_2}-\langle\Delta_{s_2}\rangle_\mathbb{T}\right)\rangle_\mathbb{T}}{\sigma(\Delta_{s_1})\sigma(\Delta_{s_2})}
+\end{equation}
+with $\sigma_s$ being the standard deviation over the time series $\Delta_s$:
+\begin{equation}
+\sigma_s \equiv \sqrt{\frac{T}{T-1}\langle\left(\Delta_{s}-\langle\Delta_{s}\rangle_\mathbb{T}\right)^2\rangle_\mathbb{T}}
+\end{equation}
+This measure normalizes the gain/loss amplitudes of $\Delta$ and is suitable to identify securities with comparable trends without regard to the relative changes.\\
+This article defines the market stress matrix $M_\mathbb{S}$ as:
+\begin{equation}
+M_\mathbb{S}\equiv C_\mathbb{S} - \textrm{1}_\mathbb{S}\quad.
+\end{equation}
+$M_\mathbb{S}$ is a symmetric matrix with diagonal elements all equal to $0$.\\
+
+Collective price movements during a trading interval indicate that the securities prices are not assessed individually by the market, but that a collection of securities react to some kind of market stress.\\
+With this measure, $M_\mathbb{S}$ quantifies for each security $s$ the experienced stress $f_s$ during the time period $\mathbb{T}$.
+\begin{equation}
+f_s\equiv (M_\mathbb{S}^\top M_\mathbb{S})_{ss}
+\end{equation}
+The security's stress $f_s$ is an emergent property of an individual security, reacting on the market dynamics.\\
+
+As a measure of the average market stress this article will use
+\begin{equation}
+f^{(m)}_\mathbb{T} \equiv \langle f_s\rangle=\frac{1}{S}\sum_{s\in\mathbb{S}}f_s=\frac{1}{S}Tr\left(M_\mathbb{S}^\top M_\mathbb{S}\right)\quad.
+\end{equation}
+\FloatBarrier
+\subsection{Principal securities}
+At times with high market stress $f^{(m)}_\mathbb{T}$ price movements of some securities are synchronized. This article identifies principal securities as the set of securities whose price movements always synchronize at times of high market stress. In this sense, principal securities represent the general price dynamics of the whole market in times of high market stress.\\
+The search for such principal securities uses the stress matrix $M_\mathbb{S}$ at times of maximal $f^{(m)}_\mathbb{T}$, where by each security is associated with one column of matrix $M_\mathbb{S}$ as a stress vector. By using the K-means algorithm securities with similar stress vectors are grouped into clusters. If, for a list of high stress days, the same securities always end up in the cluster with the highest stress average, they are considered to be principal securities of the respective market.\\
+The existence of principal securities should not be taken for granted for a market over a given time period.
+\FloatBarrier
+\pagebreak
+\section{Results}
+\subsection{Swiss stock exchange SWX}
+\begin{pycode}
+market_code = 'SWX'
+series_length = 20
+event_filename = 'market_stress_events'
+
+date_range = ('01.01.2000','31.12.2018')
+stress_series_file = 'stress_series_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, security_list = base.observed_changes(market_code, date_range, always=False, T=series_length)
+	code.stress_series(change_generator, offset=0, filename = stress_series_file)
+else:
+	security_list = [None]*246
+base.plot_time_series({'T=20':stress_series_file},  (r'$f^{(SWX)}$'), event_filename=event_filename)
+
+date_range_zoom = ('01.01.2016','31.12.2016')
+stress_series_zoom_file = 'stress_series_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range_zoom[0]), base.datestamp(date_range_zoom[1]))
+if recalculate:
+	change_generator, _ = base.observed_changes(market_code, date_range_zoom, always=False, T=series_length)
+	code.stress_series(change_generator, offset=0, filename = stress_series_zoom_file)
+base.plot_time_series({'T=20':stress_series_zoom_file}, (r'$f^{(SWX)}$'), event_filename=event_filename)
+\end{pycode}
+For the SIX Swiss exchange (SWX) the daily quotes changes over the time interval \py{date_range[0]} - \py{date_range[1]}  have been analyzed for all \py{len(security_list)} securities with ISIN codes issued in Switzerland.\\
+During this time, the probability distribution for a quote change to occur from one trading day to the next is markedly non-Gaussian and shown in figure \ref{figSWXDist}. The peak at $\Delta=0$ is caused by illiquid securities which are not traded on a daily basis and their prices may remain consequently at the last known quote for several days.\\
+
+\begin{pycode}
+market_code = 'SWX'
+date_range = ('01.01.2000','31.12.2018')
+change_range = (-0.2, 0.2)
+change_histogram_file = 'change_histogram_{}_{}-{}'.format(market_code, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, security_list = base.observed_changes(market_code, date_range)
+	sample_size = code.calculate_histogram(change_generator, change_range, change_histogram_file)
+else:
+	security_list = [None]*97
+	sample_size = 473360
+market_param_SWX = (66, 123, 3.09, 110)
+fit_param, fit_param_error = base.plot_histogram(change_histogram_file, market_param_SWX, (r'$\Delta$',r'$p_{SWX}$'))
+#print(fit_param, fit_param_error)
+\end{pycode}
+\begin{figure}[!ht]
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[trim=0 10 0 50,clip,width=\columnwidth]{{{{"img/{}"}}}}'.format(change_histogram_file))}
+\caption{Probability distribution for \py{base.format_number(sample_size)} quote changes of \py{len(security_list)} continuously traded securities on market SWX during the period \py{date_range[0]} - \py{date_range[1]}.\\
+The dashed curve indicates the approximation \eqref{eqQuoteChangeDist} with parameters \eqref{eqSWXDist}.}
+\label{figSWXDist}
+\end{figure}
+The probability of a price change $\Delta$ has been found to be approximated by
+\begin{equation}
+%p(\Delta)\approx e^{\alpha\frac{1-e^{\beta\Delta}}{1+e^{\beta\Delta}}\Delta+\gamma\Delta^4+\delta}\label{eqQuoteChangeDist}\\
+p(\Delta)\approx exp\left[\left(\alpha\Delta\frac{1-e^{\beta\Delta}}{1+e^{\beta\Delta}}+\gamma\right)\left(1+e^{-\delta\Delta^2}\right)\right]\;,\label{eqQuoteChangeDist}
+\end{equation}
+with these parameters as a best fit for market SWX:
+\begin{equation}
+\alpha\approx\py{market_param_SWX[0]}\quad\beta\approx\py{market_param_SWX[1]}\quad\gamma\approx\py{market_param_SWX[2]}\quad\delta\approx\py{market_param_SWX[3]}\;.\label{eqSWXDist}
+\end{equation}
+The market stress $f_\mathbb{T}$ for SWX with time series length $T=\py{series_length}$ is shown in figure \ref{figSWXstress} (top). Over a background noise level at about $0.23$, distinctive peaks in market stress can be identified.
+
+\begin{figure}[!ht]
+\centering
+\begin{subfigure}[b]{\textwidth}
+	% trim={<left> <lower> <right> <upper>}
+	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(stress_series_file))}
+\end{subfigure}
+\begin{subfigure}[b]{\textwidth}
+	\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(stress_series_zoom_file))}
+\end{subfigure}
+\caption{Market stress for SWX for time series length $T=\py{series_length}$. The horizontal axis indicates the last day of the time series.  Notable events from table \ref{tab_marketevents} are indicated as dotted vertical lines.\\
+Top: Whole analyzed interval \py{date_range[0]} - \py{date_range[1]} . Bottom: Detailed view. The width of the peaks corresponds to temporal resolution of an analysis with time series length $T=\py{series_length}$.\\
+}
+\label{figSWXstress}
+\end{figure}
+
+The heat map of the Pearson correlation coefficients between time series of all traded securities reveals that not all securities are equally affected by high market stress (figure \ref{figSWXstressmap}). While time series of some securities become correlated, there are other securities whose price evolution remain independent. For an ad-hoc categorization, the securities have been grouped by a K-means algorithm into 4 categories.\\
+For visual effect, securities are ordered by the average correlation value of their respective category and their own correlation value with respect to the other securities in the same category.
+
+\begin{pycode}
+series_length = 20
+date_low = '18.03.2017'
+stress_matrix_low_file = 'stress_{}_{}_{}'.format(market_code, series_length, base.datestamp(date_low))
+if recalculate:
+	code.market_stress_matrix(market_code, date_low, series_length, stress_matrix_low_file)
+base.plot_matrix(stress_matrix_low_file, (-1,1))
+
+date_high = '17.01.2015'
+stress_matrix_high_file = 'stress_{}_{}_{}'.format(market_code, series_length, base.datestamp(date_high))
+if recalculate:
+	code.market_stress_matrix(market_code, date_high, series_length, stress_matrix_high_file)
+base.plot_matrix(stress_matrix_high_file, (-1,1))
+\end{pycode}
+\begin{figure}[!ht]
+\centering
+\begin{subfigure}[b]{0.48\textwidth}
+	% trim={<left> <lower> <right> <upper>}
+	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(stress_matrix_low_file))}
+\end{subfigure}
+~
+\begin{subfigure}[b]{0.48\textwidth}
+	\pyc{print(r'\includegraphics[width=\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(stress_matrix_high_file))}
+\end{subfigure}
+\caption{Heat map of Pearson correlation coefficients between time series of traded securities on market SWX.\\
+Left: Low market stress on $\py{date_low}$. Right: High market stress on $\py{date_high}$.}
+\label{figSWXstressmap}
+\end{figure}
+\begin{pycode}
+event_filename = 'market_stress_events'
+date_range = ('01.01.2013','31.12.2018')
+series_length = 20
+principal_securities_file = 'principal_securities_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	code.find_principal_securities(market_code, event_filename, date_range, series_length, principal_securities_file)
+security_list = base.load_list(principal_securities_file)
+\end{pycode}
+
+Principal securities end up in each moment of high market stress in the category with highest correlation values. Table \ref{tabSWXstressedSecurities} lists the principal securities for market SWX during the time period \py{date_range[0]} - \py{date_range[1]}.
+\begin{table}[!ht]
+\centering
+\small
+\begin{tabular}{l|l}
+\pyc{base.latex_table(security_list)}
+\end{tabular}
+\caption{Principal securities for SWX evaluated for all stress events (table \ref{tab_marketevents}) during the time period \py{date_range[0]} - \py{date_range[1]}.}
+\label{tabSWXstressedSecurities}
+\end{table}
+
+\FloatBarrier
+\subsection{German stock exchange Xetra}
+\begin{pycode}
+market_code = 'XETR'
+series_length = 20
+event_filename = 'market_stress_events'
+
+date_range = ('01.01.2003','31.12.2018')
+stress_series_file = 'stress_series_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, security_list = base.observed_changes(market_code, date_range, always=False, T=series_length)
+	code.stress_series(change_generator, offset=0, filename=stress_series_file)
+else:
+	security_list = [None]*473
+
+series_length_long = 40
+stress_series_file_long = 'stress_series_{}_{}_{}-{}'.format(market_code, series_length_long, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, _ = base.observed_changes(market_code, date_range, always=False, T=series_length_long)
+	code.stress_series(change_generator, offset=0, filename=stress_series_file_long)
+else:
+	security_list = [None]*473
+
+base.plot_time_series({'T=20':stress_series_file, 'T=40':stress_series_file_long}, (r'$f^{(Xetra)}$'), event_filename=event_filename)
+\end{pycode}
+For the German stock exchange Xetra the daily quote changes over the time interval \py{date_range[0]} - \py{date_range[1]}  have been analyzed for all \py{len(security_list)} securities with ISIN codes issued in Germany.\\
+\begin{pycode}
+market_code = 'XETR'
+date_range = ('01.02.2003','31.12.2018')
+change_range = (-0.2, 0.2)
+change_histogram_file = 'change_histogram_{}_{}-{}'.format(market_code, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, security_list = base.observed_changes(market_code, date_range)
+	sample_size = code.calculate_histogram(change_generator, change_range, change_histogram_file)
+else:
+	security_list = [None]*153
+	sample_size = 619191
+market_param_XETR = (56.8, 121, 3.04, 57)
+fit_param, fit_param_error = base.plot_histogram(change_histogram_file, market_param_XETR, (r'$\Delta$',r'$p_{Xetra}$'))
+#print(fit_param, fit_param_error)
+\end{pycode}
+As for SWX, the probability distribution for a quote change is again non-Gaussian (figure \ref{figXETRDist}) and  illiquid securities are responsible for a peak at $\Delta=0$.\\
+\begin{figure}[!ht]
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[trim=0 10 0 50,clip,width=\columnwidth]{{{{"img/{}"}}}}'.format(change_histogram_file))}
+\caption{Probability distribution for \py{base.format_number(sample_size)} quote changes of \py{len(security_list)} continuously traded securities on market Xetra during the period \py{date_range[0]} - \py{date_range[1]}.\\
+The dashed curve indicates the approximation \eqref{eqQuoteChangeDist} with parameters \eqref{eqXETRDist}.}
+\label{figXETRDist}
+\end{figure}
+
+The distribution of daily price changes for market Xetra is approximated by \eqref{eqQuoteChangeDist} with parameters:
+\begin{equation}
+\alpha\approx\py{market_param_XETR[0]}\quad\beta\approx\py{market_param_XETR[1]}\quad\gamma\approx\py{market_param_XETR[2]}\quad\delta\approx\py{market_param_XETR[3]}\;.\label{eqXETRDist}
+\end{equation}
+
+The market stress $f^{(Xetra)}$ for time series lengths $T=\py{series_length}$ and $T=\py{series_length_long}$ is shown in figure \ref{figXETRstress}. For $T=\py{series_length}$, the baseline market stress at around $0.24$ is comparable to the values found for SWX with the same time series length. For $T=\py{series_length_long}$, baseline stress is lowered to around $0.17$.\\
+
+\begin{figure}[!ht]
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(stress_series_file_long))}
+\caption{Market stress for Xetra evaluated for different time series lengths. The horizontal axis indicates the last day of the time series. Notable events from table \ref{tab_marketevents} are indicated as dotted vertical lines.}
+\label{figXETRstress}
+\end{figure}
+\begin{pycode}
+market_code = 'XETR'
+event_filename = 'market_stress_events'
+date_range = ('01.01.2013','31.12.2018')
+series_length = 20
+principal_securities_file = 'principal_securities_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	code.find_principal_securities(market_code, event_filename, date_range, series_length, principal_securities_file)
+security_list = base.load_list(principal_securities_file)
+\end{pycode}
+
+For market Xetra, there too exists a group of securities (table \ref{tabXETRstressedSecurities}) whose price changes correlate during moments of high market stress.
+\begin{table}[!ht]
+\centering
+\small
+\begin{tabular}{l|l}
+\pyc{base.latex_table(security_list)}
+\end{tabular}
+\caption{Principal securities for Xetra evaluated for all stress events (table \ref{tab_marketevents}) during the time period \py{date_range[0]} - \py{date_range[1]}.}
+\label{tabXETRstressedSecurities}
+\end{table}
+\FloatBarrier
+\clearpage
+\subsection{Crypto currencies CRYP}
+\begin{pycode}
+market_code = 'CRYP'
+series_length = 20
+event_filename = 'market_stress_events'
+
+date_range = ('01.01.2015','31.12.2018')
+stress_series_file = 'stress_series_{}_{}_{}-{}'.format(market_code, series_length, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, security_list = base.observed_changes(market_code, date_range, always=False, T=series_length)
+	code.stress_series(change_generator, offset=0, filename=stress_series_file)
+else:
+	security_list = [None]*209
+base.plot_time_series({'T=20':stress_series_file}, (r'$f^{(CRYP)}$'), event_filename=event_filename)
+\end{pycode}
+For the crypto currency data, daily quotes from \url{www.cryptocurrencychart.com} for \py{len(security_list)} currencies over the time interval \py{date_range[0]} - \py{date_range[1]} have been analyzed.\\
+Although all analyzed crypto currency data sets were obtained from \url{www.cryptocurrencychart.com}, the trading platforms from which the quotes originated are unknown. The results of the crypto currency analysis therefore do not reflect the experienced stress of a single market, but rather of the global crypto trade market.\\
+\begin{pycode}
+market_code = 'CRYP'
+date_range = ('01.01.2015','31.12.2018')
+change_range = (-0.2, 0.2)
+change_histogram_file = 'change_histogram_{}_{}-{}'.format(market_code, base.datestamp(date_range[0]), base.datestamp(date_range[1]))
+if recalculate:
+	change_generator, security_list = base.observed_changes(market_code, date_range)
+	sample_size = code.calculate_histogram(change_generator, change_range, change_histogram_file)
+else:
+	security_list = [None]*15
+	sample_size = 18990
+market_param_CRYP = (17.9, 84, 1.97, 0)
+fit_param, fit_param_error = base.plot_histogram(change_histogram_file, market_param_CRYP, (r'$\Delta$',r'$p_{CRYP}$'))
+#print(fit_param, fit_param_error)
+\end{pycode}
+During the analyzed time interval, several crypto currencies have only occasionally been traded, many without daily price changes. As a consequence the peak at $\Delta=0$ is much more pronounced than for SWX or Xetra.\\
+\begin{figure}[!ht]
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[trim=0 10 0 50,clip,width=\columnwidth]{{{{"img/{}"}}}}'.format(change_histogram_file))}
+\caption{Probability distribution for \py{base.format_number(sample_size)} quote changes of \py{len(security_list)} continuously traded securities on market CRYP during the period \py{date_range[0]} - \py{date_range[1]}.\\
+The dashed curve indicates the approximation \eqref{eqQuoteChangeDist} with parameters \eqref{eqCRYPDist}.}
+\label{figChangeDistCRYP}
+\end{figure}
+
+The distribution of daily price changes for market CRYP is approximated by \eqref{eqQuoteChangeDist} with parameters:
+\begin{equation}
+\alpha\approx\py{market_param_CRYP[0]}\quad\beta\approx\py{market_param_CRYP[1]}\quad\gamma\approx\py{market_param_CRYP[2]}\quad\delta\approx\py{market_param_CRYP[3]}\;.\label{eqCRYPDist}
+\end{equation}
+Whether the parameter fit for $\delta$ \eqref{eqCRYPDist} is due to the limited data set size or reflects a genuine property of $p_{CRYP}$ is unclear.
+\begin{pycode}
+date_heat_map = '08.12.2018'
+stress_matrix_file = 'stress_{}_{}_{}'.format(market_code, series_length, base.datestamp(date_heat_map))
+if recalculate:
+	code.market_stress_matrix(market_code, date_heat_map, series_length, stress_matrix_file)
+base.plot_matrix(stress_matrix_file, (-1,1))
+\end{pycode}
+
+\begin{figure}[!ht]
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 40 50 50}},clip]{{{{"img/{}"}}}}'.format(stress_series_file))}
+\caption{Market stress for CRYP evaluated for $T=\py{series_length}$. The horizontal axis indicates the last day of the time series. Notable events from table \ref{tab_marketevents} are indicated as dotted vertical lines.}
+\label{figCRYPstress}
+\end{figure}
+\begin{figure}[!ht]
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[width=0.48\textwidth,trim={{55 50 0 60}},clip]{{{{"img/{}"}}}}'.format(stress_matrix_file))}
+\caption{Heat map of Pearson correlation coefficients between time series of traded securities on market CRYP for $T=\py{series_length}$ at \py{date_heat_map}.}
+\label{figCRYPstressMap}
+\end{figure}
+\clearpage
+\section{Discussion}
+\subsection{Baseline market stress}
+\begin{pycode}
+securities = 100
+simulation_runs = 1000
+trading_days_list = [5, 10, 20, 40, 80, 160, 320]
+correlation_check_T = 20
+
+change_range_uniform = (-0.5, 0.5)
+baseline_stress_file_uniform = 'baseline_stress_uniform'
+if recalculate:
+	change_generator = base.uniform_distribution(change_range_uniform)
+	code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, baseline_stress_file_uniform, correlation_check_T)
+baseline_fit_uniform,  baseline_error_uniform = base.plot_baseline_stress(baseline_stress_file_uniform)
+baseline_uniform_20 = float(base.load_list(baseline_stress_file_uniform)[3,1])
+
+change_range_normal = (-0.05, 0.05)
+baseline_stress_file = 'baseline_stress_normal'
+sigma = 0.05
+if recalculate:
+	change_generator = base.normal_distribution(sigma, change_range_normal)
+	code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, baseline_stress_file)
+baseline_fit_normal,  baseline_error_normal = base.plot_baseline_stress(baseline_stress_file)
+baseline_normal_20 = float(base.load_list(baseline_stress_file)[3,1])
+
+market_code = 'SWX'
+change_range = (-0.1, 0.1)
+baseline_stress_file = 'baseline_stress_SWX'
+if recalculate:
+	change_generator = base.market_distribution(
+        market_param_SWX[0], market_param_SWX[1], market_param_SWX[2], market_param_SWX[3], change_range)
+	code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, baseline_stress_file)
+baseline_fit_SWX,  baseline_error_SWX = base.plot_baseline_stress(baseline_stress_file)
+baseline_SWX_20 = float(base.load_list(baseline_stress_file)[3,1])
+
+market_code = 'XETR'
+baseline_stress_file = 'baseline_stress_XETR'
+if recalculate:
+	change_generator = base.market_distribution(
+        market_param_XETR[0], market_param_XETR[1], market_param_XETR[2], market_param_XETR[3], change_range)
+	code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, baseline_stress_file)
+baseline_fit_XETR,  baseline_error_XETR = base.plot_baseline_stress(baseline_stress_file)
+baseline_XETR_20 = float(base.load_list(baseline_stress_file)[3,1])
+
+market_code = 'CRYP'
+baseline_stress_file = 'baseline_stress_CRYP'
+if recalculate:
+	change_generator = base.market_distribution(
+        market_param_CRYP[0], market_param_CRYP[1], market_param_CRYP[2], market_param_CRYP[3], change_range)
+	code.baseline_stress_quote_simulation(trading_days_list, securities, simulation_runs, change_generator, baseline_stress_file)
+baseline_fit_CRYP,  baseline_error_CRYP = base.plot_baseline_stress(baseline_stress_file)
+baseline_CRYP_20 = float(base.load_list(baseline_stress_file)[3,1])
+
+baseline_stress_file = 'baseline_stress_synthetic'
+file_fit_list = [
+	'baseline_stress_uniform','baseline_stress_normal',
+	'baseline_stress_SWX','baseline_stress_XETR', 'baseline_stress_CRYP']
+if recalculate:
+	synth_corr_param, synth_corr_error = code.baseline_stress_synthetic_correlation(file_fit_list, trading_days_list, securities, simulation_runs, baseline_stress_file)
+else:
+	synth_corr_param = ([0.52599842, 0.3481435], [0.41640685, -1.48280483])
+	synth_corr_error = ([0.01103528, 0.02006066], [0.00095922, 0.13395941])
+baseline_fit_synth,  baseline_error_synth = base.plot_baseline_stress(baseline_stress_file)
+baseline_synth_20 = float(base.load_list(baseline_stress_file)[3,1])
+base.plot_correlation_histogram(correlation_check_T, synth_corr_param, (r'$\chi$',r'$p(\chi)$') )
+\end{pycode}
+Assuming a market with completely random quote fluctuations $\Delta_\mathbb{T}$, its average market stress can be used as a baseline to compare against the effective market stress. Market stresses deviating significantly from this baseline indicate the presence of information beyond purely random effects.\\
+
+The baseline market stress for quote fluctuations approximated by \eqref{eqBaselineMarketStress} for all three markets SWX, Xetra and CRYP has been calculated for several interval lengths $T\in\{\py{", ".join(map(str, trading_days_list))}\}$ by simulating \py{base.format_number(simulation_runs)} time series with \py{securities} securities each. For comparison the same has been done for an uniform and a normal ($\sigma=\py{sigma}$) probability distribution \eqref{eqNormalDistribution}\\ 
+\begin{equation}
+p(\Delta)=\frac{1}{2\pi\sigma^2}e^{-\frac{\Delta^2}{2\sigma^2}}\quad.
+\label{eqNormalDistribution}
+\end{equation}
+For all these different probability distributions, the baseline market stress has been found to only depend on the length of time series and approximated by
+\begin{equation}
+f^0_\mathbb{T} \approx \alpha T^\beta\quad,\label{eqBaselineMarketStress}
+\end{equation}
+with parameters $\alpha$ and $\beta$ listed in table \ref{tabBaselineParameter}.\\
+\begin{figure}[!ht]
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[width=\columnwidth,trim={{40 15 50 50}},clip]{{{{"img/{}"}}}}'.format(baseline_stress_file_uniform))}
+\caption{Dependency of the intrinsic market stress $f^0_\mathbb{T}$ on $T$ on a logarithmic scale. Circles show simulated baseline market stresses for a uniform distribution between the interval $\left[\py{change_range_uniform[0]}, \py{change_range_uniform[1]}\right]$ for $\Delta$. The dotted line indicates the approximation \eqref{eqBaselineMarketStress}.}
+\label{figIntrinsicMarketStress}
+\end{figure}
+
+\begin{table}[!ht]
+\centering
+\small
+\begin{tabular}{c | c || c | c || c}
+$p(\Delta)$ & $\Delta$ range & $\alpha$ & $\beta$\\
+\hline
+uniform & $\py{"[{:0.2f}, {:0.2f}]".format(change_range_uniform[0], change_range_uniform[1])}$ & $\py{"{:0.3f}".format(baseline_fit_uniform[0])} \pm \py{"{:0.3f}".format(baseline_error_uniform[0])}$ & $\py{"{:0.3f}".format(baseline_fit_uniform[1])} \pm \py{"{:0.3f}".format(baseline_error_uniform[1])}$ & $\py{"{:0.3f}".format(baseline_uniform_20)}$\\
+normal ($\sigma=\py{sigma}$) & $\py{"[{:0.2f}, {:0.2f}]".format(change_range_normal[0], change_range_normal[1])}$ & $\py{"{:0.3f}".format(baseline_fit_normal[0])} \pm \py{"{:0.3f}".format(baseline_error_normal[0])}$ & $\py{"{:0.3f}".format(baseline_fit_normal[1])} \pm \py{"{:0.3f}".format(baseline_error_normal[1])}$ & $\py{"{:0.3f}".format(baseline_normal_20)}$\\
+SWX (\ref{eqQuoteChangeDist}, \ref{eqSWXDist}) & $\py{"[{:0.2f}, {:0.2f}]".format(change_range[0], change_range[1])}$ & $\py{"{:0.3f}".format(baseline_fit_SWX[0])} \pm \py{"{:0.3f}".format(baseline_error_SWX[0])}$ & $\py{"{:0.3f}".format(baseline_fit_SWX[1])} \pm \py{"{:0.3f}".format(baseline_error_SWX[1])}$ & $\py{"{:0.3f}".format(baseline_SWX_20)}$\\
+Xetra (\ref{eqQuoteChangeDist}, \ref{eqXETRDist}) & $\py{"[{:0.2f}, {:0.2f}]".format(change_range[0], change_range[1])}$ & $\py{"{:0.3f}".format(baseline_fit_XETR[0])} \pm \py{"{:0.3f}".format(baseline_error_XETR[0])}$ & $\py{"{:0.3f}".format(baseline_fit_XETR[1])} \pm \py{"{:0.3f}".format(baseline_error_XETR[1])}$ & $\py{"{:0.3f}".format(baseline_XETR_20)}$\\
+CRYP (\ref{eqQuoteChangeDist}, \ref{eqCRYPDist}) & $\py{"[{:0.2f}, {:0.2f}]".format(change_range[0], change_range[1])}$ & $\py{"{:0.3f}".format(baseline_fit_CRYP[0])} \pm \py{"{:0.3f}".format(baseline_error_CRYP[0])}$ & $\py{"{:0.3f}".format(baseline_fit_CRYP[1])} \pm \py{"{:0.3f}".format(baseline_error_CRYP[1])}$ & $\py{"{:0.3f}".format(baseline_CRYP_20)}$\end{tabular}
+\caption{Parameters to \eqref{eqBaselineMarketStress} for various probability distributions for market quote fluctuations.}
+\label{tabBaselineParameter}
+\end{table}
+\FloatBarrier
+The observation that the baseline market stress seems to be independent on the underlying probability for quote changes to occur, suggests also that the correlation matrix between time series is only determined by the time series length and not by the actual quote fluctuations.\\
+\begin{figure}[!ht]
+\centering
+	% trim={<left> <lower> <right> <upper>}
+\pyc{print(r'\includegraphics[trim=0 10 0 50,clip,width=\columnwidth]{{{{"img/{}"}}}}'.format("correlation_histogram"))}
+\caption{Probability distribution for off-diagonal matrix elements with a uniform quote change distribution and time series length $T=\py{correlation_check_T}$.\\ The dashed curve indicates the approximation \eqref{eqCorrelationApprox} with parameters \eqref{eqCorrelationApproxParams}.}
+\label{figChangeDistSWX}
+\end{figure}
+
+It has been found, that the probability of two time series with length $T$ having the Pearson correlation coefficient $\chi$ can be approximated by 
+\begin{equation}
+p(\chi) = aT^b\left\lvert \cos\left(\frac{\chi\pi}{2}\right)\right\rvert^{cT+d}
+\label{eqCorrelationApprox}
+\end{equation}
+with parameter values
+\begin{align}
+a\approx\py{"{:0.3f}".format(synth_corr_param[0][0])} \pm \py{"{:0.3f}".format(synth_corr_error[0][0])} & \quad b\approx\py{"{:0.3f}".format(synth_corr_param[0][1])} \pm \py{"{:0.3f}".format(synth_corr_error[0][1])}\nonumber\\
+c\approx\py{"{:0.3f}".format(synth_corr_param[1][0])} \pm \py{"{:0.3f}".format(synth_corr_error[1][0])} & \quad d\approx\py{"{:0.3f}".format(synth_corr_param[1][1])} \pm \py{"{:0.3f}".format(synth_corr_error[1][1])}\quad.
+\label{eqCorrelationApproxParams}
+\end{align}
+Calculating the baseline stress with such a synthetic correlation matrix reproduces the dependency from the length $T$ of a time series reasonably well (table \ref{tabBaselineSynthParameter}).
+\begin{table}[!ht]
+\centering
+\small
+\begin{tabular}{c || c | c || c}
+$p(\chi)$ & $\alpha$ & $\beta$\\
+\hline
+synthetic (\ref{eqCorrelationApprox}, \ref{eqCorrelationApproxParams}) & $\py{"{:0.3f}".format(baseline_fit_synth[0])} \pm \py{"{:0.3f}".format(baseline_error_synth[0])}$ & $\py{"{:0.3f}".format(baseline_fit_synth[1])} \pm \py{"{:0.3f}".format(baseline_error_synth[1])}$ & $\py{"{:0.3f}".format(baseline_synth_20)}$
+\end{tabular}
+\caption{Parameters to \eqref{eqBaselineMarketStress} for various probability distributions for market quote fluctuations. To be compared with table \ref{tabBaselineParameter}.}
+\label{tabBaselineSynthParameter}
+\end{table}
+\subsection{Potential causes for market stress}
+\begin{pycode}
+corr, date_range = code.market_correlation((
+	'stress_series_SWX_20_20000101-20181231',
+	'stress_series_XETR_20_20030101-20181231',
+	'stress_series_CRYP_20_20150101-20181231'
+	))
+\end{pycode}
+Comparing the market stresses over time for the three markets SWX, Xetra and CRYP (figures \ref{figSWXstress}, \ref{figXETRstress} and \ref{figCRYPstress}) it appears that many moments of high stress are shared between SWX and Xetra, but not with CRYP. This similarity between SWX and Xetra is confirmed by the Pearson correlation between these stress times series over the time interval \py{date_range[0]} - \py{date_range[1]}. Between SWX/Xetra the correlation amounts to \py{"{:0.1f}".format(corr[0,1])}, which is significantly larger than SWX/CRYP (\py{"{:0.1f}".format(corr[0,2])}) or Xetra/CRYP (\py{"{:0.1f}".format(corr[1,2])}).\\
+
+This correlation between SWX/Xetra market stresses and several stress peaks occurring at roughly the same moment (table \ref{tab_marketevents}) for completely disjoint sets of securities suggest that these market reactions are triggered not by an internal market dynamics, but by external events.\\
+One such external event might have been the Brexit referendum in the UK on 23.6.2016. Markets didn't seem to have been prepared for the referendums outcome and both SWX and Xetra show distinctive peaks close to this date. Figure \ref{figSWXstress} (bottom) shows the period \py{date_range_zoom[0]} - \py{date_range_zoom[1]} for SWX in more detail.\\
+On the other hand,  the decision of the Swiss national bank to remove the cap on the CHF-EUR exchange rate on 15.1.2015 seems to have mostly effected SWX (figure \ref{figSWXstress}). For market Xetra, these events left barely a trace in the stress record (figure \ref{figXETRstress}).\\
+The stress of the crypto currency markets seems to be unrelated to neither SWX nor Xetra. While some peaks (table \ref{tab_marketevents}: \#11, \#15) coincide with peaks of the other two markets this seems to be rather accidental. The elevated stress levels since beginning of 2018 correspond to the crash in crypto currency quotes and are an indication that only a few currencies are traded independently since (figure \ref{figCRYPstressMap}).\\
+
+Table \ref{tab_marketevents} lists all times at which stress levels exceeding $0.35$ for either SWX or Xetra and the day they reached their maximum.\\
+
+Conspicuously, before 2007 market stress levels almost never surpassed the $0.35$ mark. Only from 2007 onward are peaks above $0.35$ quite common. Although 2007 also marks the onset of a period with high market fluctuations due to the sub-prime mortgage crisis, the period before 2007 was hardly without its own market turbulence. It is not outlandish to expect that e.g. the terror attacks on 11.9.2001 and subsequent events should also have been able to leave their marks on the stress signals of SWX, but actual stress levels were far below those found after 2007.\\
+Another possible explanation may be sought in the proliferation of trading algorithms \cite{SWX20070403, SWX20070705}, which might amplify the effect that crisis have on a market. With this reasoning, the principal securities could then bethose securities which have been identified as most profitable in specific scenarios.\\
+
+\begin{table}[!ht]
+\small
+\begin{tabular}{c|c|c|c|l}
+\# & SWX & Xetra & \multicolumn{2}{|c}{Possible trigger event}\\
+\hline
+\multirow{2}{*}{1} & 13.06.2006 		& 15.06.2006     & \multirow{2}{*}{14.06.2006} & \multirow{2}{0.33\linewidth}{}\\
+							 & 05.06.-03.07.	& 30.05.-05.07. & &\\
+\hline
+\multirow{2}{*}{2} & 26.03.2007 		& 24.03.2007     & \multirow{2}{*}{25.03.2007} & \multirow{2}{0.33\linewidth}{}\\
+							 & 14.03.-26.03.	& 08.03.-26.03. & &\\
+\hline
+\multirow{2}{*}{3} & 27.08.2007 		&      & \multirow{2}{*}{27.08.2007} & \multirow{2}{0.33\linewidth}{}\\
+							 & 16.08.-12.09.	& & &\\
+\hline
+\multirow{2}{*}{4} & 16.02.2008 		& 16.02.2008     & \multirow{2}{*}{16.02.2008} & \multirow{2}{0.33\linewidth}{US mortgage crisis, AIG}\\
+							 & 24.01.-17.02.	& 04.02.-17.02. & &\\
+\hline
+\multirow{2}{*}{5} & 15.10.2008 		& 15.10.2008     & \multirow{2}{*}{15.10.2008} & \multirow{2}{0.33\linewidth}{Banking crisis, national bank interventions}\\
+							 & 08.10.-11.11.	& 08.10.-09.11. & &\\
+\hline
+\multirow{2}{*}{6} & 03.06.2010 		& 30.05.2010     & \multirow{2}{*}{01.06.2010} & \multirow{2}{0.33\linewidth}{European sovereign debt crisis: Greece/Spain}\\
+							 & 10.05.-14.06.	& 10.05.-15.06. & &\\
+\hline
+\multirow{2}{*}{7} & & 22.03.2011     & \multirow{2}{*}{22.03.2011} & \multirow{2}{0.33\linewidth}{}\\
+							 & & 15.03.-11.04. & &\\
+\hline
+\multirow{2}{*}{8} & 15.08.2011 		& 14.09.2011  & \multirow{2}{*}{01.09.2011} & \multirow{2}{0.33\linewidth}{06.09.2011:  Start CHF-EUR cap}\\
+							 & 02.08.-02.10.	& 08.08.-19.10. & &\\
+\hline
+\multirow{2}{*}{9} & 30.06.2013 		& & \multirow{2}{*}{30.06.2013} & \multirow{2}{0.33\linewidth}{}\\
+							 & 24.06.-30.06.	& & &\\
+\hline
+\multirow{2}{*}{10} & 17.01.2015 		& & \multirow{2}{*}{17.01.2015} & \multirow{2}{0.33\linewidth}{15.01.2015: End CHF-EUR cap}\\
+							 & 15.01.-12.02.	& & &\\
+\hline
+\multirow{2}{*}{11} & 27.08.2015 		& 15.09.2015     & \multirow{2}{*}{06.09.2015} & \multirow{2}{0.33\linewidth}{}\\
+							 & 24.08.-21.09.	& 21.08.-21.09. & &\\
+\hline
+\multirow{2}{*}{12} & 23.02.2016 		& 15.02.2016     & \multirow{2}{*}{19.02.2016} & \multirow{2}{0.33\linewidth}{}\\
+							 & 22.01.-07.03.	& 20.01.-06.03. & &\\
+\hline
+\multirow{2}{*}{13} & 13.07.2016 		& 14.07.2016     & \multirow{2}{*}{13.07.2016} & \multirow{2}{0.33\linewidth}{23.06.2016: Brexit referendum}\\
+							 & 28.06.-24.07.	& 13.07.-15.07. & &\\
+\hline
+\multirow{2}{*}{14} & 16.06.2017 		& & \multirow{2}{*}{16.06.2017} & \multirow{2}{0.33\linewidth}{}\\
+							 & 13.06.-16.06.	& & &\\
+\hline
+\multirow{2}{*}{15} & 28.02.2018 		& 02.03.2018     & \multirow{2}{*}{01.03.2018} & \multirow{2}{0.33\linewidth}{}\\
+							 & 21.02.-06.03.	& 21.02.-02.03. & &\\
+\hline
+\end{tabular}
+\caption{Periods of elevated (above 0.35) market stress and the day of maximal stress for SWX and Xetra for time series lenght $T=20$. Events indicate average day of maximal stress and possible trigger events for the two markets.}
+\label{tab_marketevents}
+\end{table}
+\clearpage
+\section{Conclusion}
+This article shows that measuring the correlation between price changes of a market's traded securities is able to resolve individual events when prices of a majority of securities are no longer determined individually, but by a collective price movements. The non-Gaussian probability distribution of daily price movements emphasizes that extreme price fluctuations are far more common than might be assumed in simple models. Random price movements provide all markets with a baseline stress. Researching this article, several topics have been broached which might deserve some more work.\\
+
+While market events with high stress are not restricted to an individual market, which indicates causes which are able to affect multiple markets. The nature of these causes is unknown, but might originate in a combination of economic/political trigger events and their interpretation by trading algorithms.\\
+
+Simulations with the probability distribution \eqref{eqQuoteChangeDist} have been unable to reproduce stress peaks. A model which is able to mimic sporadic collective price movements might provide a better explanation on their origins.\\
+
+Although the transition of a market from individually priced securities to a market with collective pricing behavior is continuous, an interpretation as a phase change of the market system might be possible. Since the degrees of freedom for price movements with individually priced securities is higher than in an collective mode, the dimension a market's phases space seems to shrink during this transition.\\
+
+The experimental finding that the Pearson correlation between time series depends only on the length of the time series, and not of the probability distributions of the time series values suggests to be valid for a whole range of probability distributions. A more thorough mathematical analysis could probably explain this effect.
+\bibliography{references}{}
+\bibliographystyle{plain}
+\end{document}

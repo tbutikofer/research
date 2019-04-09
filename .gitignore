@@ -6,8 +6,8 @@
 *.blg
 *.log
 *.pdf
+*.dvi
 */pythontex-files-*
 Correlation Analysis/csv/*
 Correlation Analysis/img/*
 Correlation Analysis/tmp_tf/*
-
